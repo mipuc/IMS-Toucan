@@ -27,33 +27,16 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir):
     if model_dir is not None:
         model_save_dir = model_dir
     else:
-        model_save_dir = "Models/HiFiGAN_combined"
+        model_save_dir = "Models/HiFiGAN_aridialect"
     if not os.path.exists(model_save_dir):
         os.makedirs(model_save_dir)
 
     file_lists = list()
-    file_lists.append(get_file_list_elizabeth())
-    file_lists.append(get_file_list_libritts())
-    file_lists.append(get_file_list_thorsten())
-    file_lists.append(get_file_list_eva())
-    file_lists.append(get_file_list_ljspeech())
-    file_lists.append(get_file_list_css10ch())
-    file_lists.append(get_file_list_css10du())
-    file_lists.append(get_file_list_css10es())
-    file_lists.append(get_file_list_css10fi())
-    file_lists.append(get_file_list_css10fr())
-    file_lists.append(get_file_list_css10ge())
-    file_lists.append(get_file_list_css10gr())
-    file_lists.append(get_file_list_css10hu())
-    file_lists.append(get_file_list_css10jp())
-    file_lists.append(get_file_list_css10ru())
-    file_lists.append(get_file_list_hokuspokus())
-    file_lists.append(get_file_list_karlsson())
-    file_lists.append(get_file_list_nancy())
+    file_lists.append(get_file_list_aridialect())
 
     datasets = list()
 
-    cache_dir = os.path.join("Corpora", "combined")
+    cache_dir = os.path.join("Corpora", "aridialect")
 
     for file_list in file_lists:
         datasets.append(HiFiGANDataset(list_of_paths=file_list,cache_dir=cache_dir))
@@ -73,3 +56,5 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir):
                epochs_per_save=1,
                model_save_dir=model_save_dir,
                path_to_checkpoint=resume_checkpoint)
+
+

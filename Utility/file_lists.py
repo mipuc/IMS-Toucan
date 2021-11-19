@@ -1,6 +1,18 @@
 import os
 
 
+
+def get_file_list_aridialect():
+    path_train = "/home/mpucher/data/aridialect"
+    file_list = list()
+    #with open(os.path.join(path_train, "train-text.txt")) as file:
+    with open(os.path.join(path_train, "test-text.txt")) as file:
+        filenames = file.readlines()
+        file_list = [os.path.join(path_train,"aridialect_wav22050",line.rstrip().split("|")[0]+".wav") for line in filenames]
+    #print(file_list)
+    return file_list
+
+
 def get_file_list_karlsson():
     root = "/mount/resources/speech/corpora/MAILabs_german_single_speaker_karlsson"
     file_list = list()
