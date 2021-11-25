@@ -25,8 +25,16 @@ def plot_attention(model, lang, device, speaker_embedding, att_dir, step):
         sentence = "This is a complex sentence, it even has a pause!"
     elif lang == "de":
         sentence = "Dies ist ein komplexer Satz, er hat sogar eine Pause!"
-    text = tf.string_to_tensor(sentence).long().squeeze(0).to(device)
-    phones = tf.get_phone_string(sentence)
+    elif lang == "at-lab":
+        sentence = "Aber die gibt es schon seit Jahrzehnten!"
+
+    if lang == "at-lab":
+        text = tf.string_to_tensor(sentence, path_to_wavfile="/home/mpucher/data/aridialect/aridialect_wav22050/spo_at_falter060401bis060630_001683.wav").long().squeeze(0).to(device)
+        phones = tf.get_phone_string(sentence, path_to_wavfile="/home/mpucher/data/aridialect/aridialect_wav22050/spo_at_falter060401bis060630_001683.wav")
+    else:
+        text = tf.string_to_tensor(sentence).long().squeeze(0).to(device)
+        phones = tf.get_phone_string(sentence)
+
     model.eval()
     att = model.inference(text=text, speaker_embeddings=speaker_embedding)[2].to("cpu")
     model.train()
