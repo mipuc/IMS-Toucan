@@ -13,6 +13,7 @@ from TrainingInterfaces.TrainingPipelines.Tacotron2_LibriTTS import run as taco_
 from TrainingInterfaces.TrainingPipelines.Tacotron2_MultiEnglish import run as taco_multi
 from TrainingInterfaces.TrainingPipelines.Tacotron2_Nancy import run as taco_Nancy
 from TrainingInterfaces.TrainingPipelines.Tacotron2_Thorsten import run as taco_Thorsten
+from TrainingInterfaces.TrainingPipelines.Tacotron2_aridialect import run as taco_aridialect
 
 pipeline_dict = {
     "fast_thorsten": fast_Thorsten,
@@ -20,6 +21,7 @@ pipeline_dict = {
 
     "fast_libri"   : fast_LibriTTS,
     "taco_libri"   : taco_LibriTTS,
+    "taco_aridialect"   : taco_aridialect,
 
     "fast_lj"      : fast_LJSpeech,
     "taco_lj"      : taco_LJSpeech,

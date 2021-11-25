@@ -1,5 +1,29 @@
 import os
 
+def build_path_to_transcript_dict_aridialect():
+    path_to_transcript = dict()
+    with open("/home/mpucher/data/aridialect/train-text.txt", encoding="utf8") as f:
+        transcriptions = f.read()
+    trans_lines = transcriptions.split("\n")
+    for line in trans_lines:
+        if line.strip() != "":
+            path_to_transcript["/home/mpucher/data/aridialect/aridialect_wav22050/" + line.split("|")[0] + ".wav"] = line.split("|")[1]
+    return path_to_transcript
+
+
+def build_path_to_transcript_dict_libritts():
+    path_train = "/home/mpucher/data/aridialect"
+    path_to_transcript = dict()
+    for speaker in os.listdir(path_train):
+        for chapter in os.listdir(os.path.join(path_train, speaker)):
+            for file in os.listdir(os.path.join(path_train, speaker, chapter)):
+                if file.endswith("normalized.txt"):
+                    with open(os.path.join(path_train, speaker, chapter, file), 'r', encoding='utf8') as tf:
+                        transcript = tf.read()
+                    wav_file = file.split(".")[0] + ".wav"
+                    path_to_transcript[os.path.join(path_train, speaker, chapter, wav_file)] = transcript
+    return path_to_transcript
+
 
 def build_path_to_transcript_dict_karlsson():
     root = "/mount/resources/speech/corpora/MAILabs_german_single_speaker_karlsson"
