@@ -33,6 +33,8 @@ class TacotronDataset(Dataset):
         self.speaker_embedding = speaker_embedding
         if remove_all_silences:
             os.makedirs(os.path.join(cache_dir, "unsilenced_audios"), exist_ok=True)
+            os.makedirs(os.path.join(cache_dir, "normalized_unsilenced_audios"), exist_ok=True)
+            os.makedirs(os.path.join(cache_dir, "normalized_audios"), exist_ok=True)
         if not os.path.exists(os.path.join(cache_dir, "taco_train_cache.pt")) or rebuild_cache:
             resource_manager = Manager()
             self.path_to_transcript_dict = resource_manager.dict(path_to_transcript_dict)
@@ -141,6 +143,7 @@ class TacotronDataset(Dataset):
                 if not os.path.exists(_norm_unsilenced_path):
                     if not os.path.exists(_norm_path):
                         wave, sr = sf.read(path)
+                        print(path)
                         dur_in_seconds = len(wave) / sr
                         if not (min_len <= dur_in_seconds <= max_len):
                             print(f"Excluding {_norm_unsilenced_path} because of its duration of {round(dur_in_seconds, 2)} seconds.")
@@ -153,6 +156,7 @@ class TacotronDataset(Dataset):
                         if not (min_len <= dur_in_seconds <= max_len):
                             print(f"Excluding {_norm_unsilenced_path} because of its duration of {round(dur_in_seconds, 2)} seconds.")
                             continue
+                        print(_norm_path)
                         sf.write(file=_norm_path, data=norm_wave.detach().numpy(), samplerate=sr)
                     unsilence = Unsilence(_norm_path)
                     unsilence.detect_silence(silence_time_threshold=0.5, short_interval_threshold=0.03, stretch_time=0.025)
@@ -194,7 +198,7 @@ class TacotronDataset(Dataset):
             norm_wave = torch.tensor(trim_zeros(norm_wave.numpy()))
             # raw audio preprocessing is done
             transcript = self.path_to_transcript_dict[path]
-            cached_text = tf.string_to_tensor(transcript).squeeze(0).cpu().numpy()
+            cached_text = tf.string_to_tensor(transcript,path_to_wavfile=path).squeeze(0).cpu().numpy()
             cached_text_len = torch.LongTensor([len(cached_text)]).numpy()
             cached_speech = ap.audio_to_mel_spec_tensor(audio=norm_wave, normalize=False).transpose(0, 1).cpu().numpy()
             cached_speech_len = torch.LongTensor([len(cached_speech)]).numpy()
