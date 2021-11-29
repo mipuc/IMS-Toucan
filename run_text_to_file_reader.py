@@ -34,6 +34,20 @@ def read_texts(model_id, sentence, filename, device="cpu", speaker_embedding=Non
     tts.read_to_file(text_list=sentence, file_location=filename)
     del tts
 
+def read_aridialect_sentences(model_id, device):
+    tts = tts_dict[model_id](device=device, speaker_embedding="default_speaker_embedding.pt")
+
+    path="/home/mpucher"
+    with open(os.path.join(path, "data/aridialect/test-text.txt"), "r", encoding="utf8") as f:
+        sents = f.read().split("\n")
+    output_dir = "audios/test_{}".format(model_id)
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+    for index, sent in enumerate(sents):
+        sentid= sent.split("|")[0]
+        wavname=os.path.join(path, "data/aridialect/aridialect_wav1600", sentid+".wav")
+        tts.read_to_file(text_list=[wavname], file_location=output_dir + "/{}.wav".format(sentid))
+
 
 def read_harvard_sentences(model_id, device):
     tts = tts_dict[model_id](device=device, speaker_embedding="default_speaker_embedding.pt")
@@ -60,4 +74,6 @@ if __name__ == '__main__':
     if not os.path.isdir("audios"):
         os.makedirs("audios")
 
-    read_harvard_sentences(model_id="fast_lj", device=exec_device)
+    #read_harvard_sentences(model_id="fast_lj", device=exec_device)
+
+    read_aridialect_sentences(model_id="aridialect", device=exec_device)
