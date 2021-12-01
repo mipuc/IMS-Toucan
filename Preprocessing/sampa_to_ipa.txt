@@ -48,6 +48,7 @@ Ee ɛe
 EeN ɛeŋ
 eh eː
 Eh ɛː
+e~: eː 
 Eh6 ɛːn
 Ehn ɛːn
 EhN ɛːŋ
@@ -134,6 +135,7 @@ P96 œɐ
 P9e œe
 P9hn œːn
 P9P2 œø
+P9h œː
 pau ~
 pH pɥ
 Qh ɒː

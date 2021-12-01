@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 import sounddevice
 import soundfile
 import torch
+import torchaudio
 
+from speechbrain.pretrained import EncoderClassifier
 from InferenceInterfaces.InferenceArchitectures.InferenceHiFiGAN import HiFiGANGenerator
 from InferenceInterfaces.InferenceArchitectures.InferenceTacotron2 import Tacotron2
 from Preprocessing.TextFrontend import TextFrontend
@@ -31,16 +33,35 @@ class aridialect_Tacotron2(torch.nn.Module):
         self.mel2wav.eval()
         self.to(torch.device(device))
 
-    def forward(self, text, view=False, path_to_wavfile):
+    def forward(self,view, path_to_wavfile):
         with torch.no_grad():
-            phones = self.text2phone.string_to_tensor(text,view,path_to_wavfile=path_to_wavfile).squeeze(0).long().to(torch.device(self.device))
+            #get spk_id from wavefile and compute speaker embedding
+            speaker_embedding_function_ecapa = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",run_opts={"device": str(self.device)},savedir="Models/speechbrain_speaker_embedding_ecapa")
+            speaker_embedding_function_xvector = EncoderClassifier.from_hparams(source="speechbrain/spkrec-xvect-voxceleb",run_opts={"device": str(self.device)},savedir="Models/speechbrain_speaker_embedding_xvector")
+
+            wav2mel = torch.jit.load("Models/SpeakerEmbedding/wav2mel.pt")
+            dvector = torch.jit.load("Models/SpeakerEmbedding/dvector-step250000.pt").to(self.device).eval()
+
+            datapoint, sample_rate = torchaudio.load(path_to_wavfile)
+
+            ecapa_spemb = speaker_embedding_function_ecapa.encode_batch(torch.Tensor(datapoint).to(self.device)).flatten().detach().cpu()
+            xvector_spemb = speaker_embedding_function_xvector.encode_batch(torch.Tensor(datapoint).to(self.device)).flatten().detach().cpu()
+            dvector_spemb = dvector.embed_utterance(wav2mel(torch.Tensor(datapoint), 16000).to(self.device)).flatten().detach().cpu()
+            combined_spemb = torch.cat([ecapa_spemb, xvector_spemb, dvector_spemb], dim=0)
+
+            #torch.save(cached_speaker_embedding, "Models/SpeakerEmbedding/aridialect_embedding.pt")
+            #self.speaker_embedding = torch.load(os.path.join("Models", "SpeakerEmbedding", "aridialect_embedding.pt"), map_location='cpu').to(torch.device("cpu")).squeeze(0).squeeze(0)
+
+            self.speaker_embedding = combined_spemb.to(self.device)
+
+            phones = self.text2phone.string_to_tensor(text="",view=False,path_to_wavfile=path_to_wavfile).squeeze(0).long().to(torch.device(self.device))
             mel = self.phone2mel(phones, speaker_embedding=self.speaker_embedding).transpose(0, 1)
             wave = self.mel2wav(mel)
         if view:
             fig, ax = plt.subplots(nrows=2, ncols=1)
             ax[0].plot(wave.cpu().numpy())
             lbd.specshow(mel.cpu().numpy(), ax=ax[1], sr=16000, cmap='GnBu', y_axis='mel', x_axis='time', hop_length=256)
-            ax[0].set_title(self.text2phone.get_phone_string(text,False, path_to_wavfile))
+            ax[0].set_title(self.text2phone.get_phone_string(text="",view=False, path_to_wavfile=path_to_wavfile))
             ax[0].yaxis.set_visible(False)
             ax[1].yaxis.set_visible(False)
             plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=.9, wspace=0.0, hspace=0.0)
@@ -62,7 +83,7 @@ class aridialect_Tacotron2(torch.nn.Module):
                 if not silent:
                     print("Now synthesizing: {}".format(wavname))
                 if wav is None:
-                    wav = self("",False,wavname).cpu()
+                    wav = self(False, wavname).cpu()
                     wav = torch.cat((wav, silence), 0)
                 else:
                     wav = torch.cat((wav, self("",False,wavname).cpu()), 0)
@@ -73,7 +94,7 @@ class aridialect_Tacotron2(torch.nn.Module):
     def read_aloud(self, wavname, view=False, blocking=False):
         if wavname.strip() == "":
             return
-        wav = self("",False,wavname).cpu()
+        wav = self(False,wavname).cpu()
         #wav = self(text, view).cpu()
         wav = torch.cat((wav, torch.zeros([24000])), 0)
         if not blocking:

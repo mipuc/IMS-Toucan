@@ -79,7 +79,7 @@ if __name__ == '__main__':
         print("Fine-tuning for HiFiGAN is not implemented as it didn't seem necessary. Should generalize across speakers without fine-tuning.")
         sys.exit()
   
-    if args.pipeline=="hifi_combined" or args.pipeline=="hifi_aridialect":
+    if args.pipeline=="hifi_combined":
         pipeline_dict[args.pipeline](gpu_id=args.gpu_id,
                                  resume_checkpoint=args.resume_checkpoint,
                                  finetune=args.finetune,

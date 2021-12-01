@@ -7,9 +7,10 @@ from TrainingInterfaces.Spectrogram_to_Wave.HiFIGAN.HiFiGAN import HiFiGANMultiS
 from TrainingInterfaces.Spectrogram_to_Wave.HiFIGAN.HiFiGANDataset import HiFiGANDataset
 from TrainingInterfaces.Spectrogram_to_Wave.HiFIGAN.hifigan_train_loop import train_loop
 from Utility.file_lists import *
+from Utility.utils import get_most_recent_checkpoint
 
 
-def run(gpu_id, resume_checkpoint, finetune, model_dir):
+def run(gpu_id, resume_checkpoint, finetune, model_dir, resume):
     if gpu_id == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
         device = torch.device("cpu")
@@ -55,6 +56,7 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir):
                device=device,
                epochs_per_save=1,
                model_save_dir=model_save_dir,
-               path_to_checkpoint=resume_checkpoint)
+               path_to_checkpoint=resume_checkpoint,
+               resume=resume)
 
 

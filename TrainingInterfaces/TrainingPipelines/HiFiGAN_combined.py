@@ -72,4 +72,5 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir):
                device=device,
                epochs_per_save=1,
                model_save_dir=model_save_dir,
-               path_to_checkpoint=resume_checkpoint)
+               path_to_checkpoint=resume_checkpoint,
+               resume=resume)

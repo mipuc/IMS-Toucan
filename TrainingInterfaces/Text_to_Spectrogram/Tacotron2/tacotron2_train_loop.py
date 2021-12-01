@@ -29,8 +29,8 @@ def plot_attention(model, lang, device, speaker_embedding, att_dir, step):
         sentence = "Aber die gibt es schon seit Jahrzehnten!"
 
     if lang == "at-lab":
-        text = tf.string_to_tensor(sentence, path_to_wavfile="/home/mpucher/data/aridialect/aridialect_wav22050/spo_at_falter060401bis060630_001683.wav").long().squeeze(0).to(device)
-        phones = tf.get_phone_string(sentence, path_to_wavfile="/home/mpucher/data/aridialect/aridialect_wav22050/spo_at_falter060401bis060630_001683.wav")
+        text = tf.string_to_tensor(sentence, path_to_wavfile="/users/michael.pucher/data/aridialect/aridialect_wav16000/spo_at_falter060401bis060630_001683.wav").long().squeeze(0).to(device)
+        phones = tf.get_phone_string(sentence, path_to_wavfile="/users/michael.pucher/data/aridialect/aridialect_wav16000/spo_at_falter060401bis060630_001683.wav")
     else:
         text = tf.string_to_tensor(sentence).long().squeeze(0).to(device)
         phones = tf.get_phone_string(sentence)

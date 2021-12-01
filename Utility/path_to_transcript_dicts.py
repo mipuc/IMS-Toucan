@@ -2,17 +2,17 @@ import os
 
 def build_path_to_transcript_dict_aridialect():
     path_to_transcript = dict()
-    with open("/home/mpucher/data/aridialect/train-text.txt", encoding="utf8") as f:
+    with open("/users/michael.pucher/data/aridialect/train-text.txt", encoding="utf8") as f:
         transcriptions = f.read()
     trans_lines = transcriptions.split("\n")
     for line in trans_lines:
         if line.strip() != "":
-            path_to_transcript["/home/mpucher/data/aridialect/aridialect_wav22050/" + line.split("|")[0] + ".wav"] = line.split("|")[1]
+            path_to_transcript["/users/michael.pucher/data/aridialect/aridialect_wav16000/" + line.split("|")[0] + ".wav"] = line.split("|")[1]
     return path_to_transcript
 
 
 def build_path_to_transcript_dict_libritts():
-    path_train = "/home/mpucher/data/aridialect"
+    path_train = "/users/michael.pucher/data/aridialect"
     path_to_transcript = dict()
     for speaker in os.listdir(path_train):
         for chapter in os.listdir(os.path.join(path_train, speaker)):

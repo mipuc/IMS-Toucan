@@ -83,6 +83,11 @@ class TacotronDataset(Dataset):
                     dvector = torch.jit.load("Models/SpeakerEmbedding/dvector-step250000.pt").to(device).eval()
                     # everything assumes 16kHz audio as input here
                     for datapoint in tqdm(self.datapoints):
+                        print(datapoint[6])
+                        print(torch.Tensor(datapoint[5]).size())
+                        if not torch.Tensor(datapoint[5]).size(dim=0)>0:
+                            print(f"Excluding {datapoint[6]} because of its duration of 0 after unsilencing.")
+                            continue
                         ecapa_spemb = speaker_embedding_function_ecapa.encode_batch(torch.Tensor(datapoint[4]).to(device)).flatten().detach().cpu()
                         xvector_spemb = speaker_embedding_function_xvector.encode_batch(torch.Tensor(datapoint[4]).to(device)).flatten().detach().cpu()
                         dvector_spemb = dvector.embed_utterance(wav2mel(torch.Tensor(datapoint[4]).unsqueeze(0), 16000).to(device)).flatten().detach().cpu()
@@ -93,7 +98,7 @@ class TacotronDataset(Dataset):
                                                     torch.Tensor(datapoint[2]),
                                                     torch.LongTensor(datapoint[3]),
                                                     combined_spemb])
-                        norm_waves.append(torch.Tensor(datapoint[-1]))
+                        norm_waves.append(torch.Tensor(datapoint[-2]))
                     del speaker_embedding_function_ecapa
                     del speaker_embedding_function_xvector
                     del wav2mel
@@ -103,11 +108,14 @@ class TacotronDataset(Dataset):
                 # multiple datasets together.
             else:
                 for datapoint in tqdm(self.datapoints):
+                    if not torch.Tensor(datapoint[4]).size(dim=0)>0:
+                        print(f"Excluding {datapoint[5]} because of its duration of 0 after unsilencing.")
+                        continue
                     tensored_datapoints.append([torch.LongTensor(datapoint[0]),
                                                 torch.LongTensor(datapoint[1]),
                                                 torch.Tensor(datapoint[2]),
                                                 torch.LongTensor(datapoint[3])])
-                    norm_waves.append(torch.Tensor(datapoint[-1]))
+                    norm_waves.append(torch.Tensor(datapoint[-2]))
 
             self.datapoints = tensored_datapoints
             # save to cache
@@ -129,7 +137,7 @@ class TacotronDataset(Dataset):
             ap = AudioPreprocessor(input_sr=sr, output_sr=None, melspec_buckets=80, hop_length=256, n_fft=1024, cut_silence=cut_silences)
             # the unsilence tool unfortunately writes files with a sample rate that we cannot control, so we need special cases
             ap_post = None
-
+        i=0
         for path in tqdm(path_list):
             if remove_all_silences:
                 name = path.split("/")[-1].split(".")[:-1]
@@ -151,6 +159,7 @@ class TacotronDataset(Dataset):
                         try:
                             norm_wave = ap.audio_to_wave_tensor(normalize=True, audio=wave)
                         except ValueError:
+                            print(f"ValueError {_norm_unsilenced_path} in normalization.")
                             continue
                         dur_in_seconds = len(norm_wave) / 16000
                         if not (min_len <= dur_in_seconds <= max_len):
@@ -158,9 +167,13 @@ class TacotronDataset(Dataset):
                             continue
                         print(_norm_path)
                         sf.write(file=_norm_path, data=norm_wave.detach().numpy(), samplerate=sr)
-                    unsilence = Unsilence(_norm_path)
-                    unsilence.detect_silence(silence_time_threshold=0.5, short_interval_threshold=0.03, stretch_time=0.025)
-                    unsilence.render_media(_norm_unsilenced_path, silent_speed=12, silent_volume=0, audio_only=True)
+                    try:
+                        unsilence = Unsilence(_norm_path)
+                        unsilence.detect_silence(silence_time_threshold=0.5, short_interval_threshold=0.03, stretch_time=0.025)
+                        unsilence.render_media(_norm_unsilenced_path, silent_speed=12, silent_volume=0, audio_only=True)
+                    except BaseException as error:
+                        print(f'An exception occurred in unsilencing: {error}')
+                        continue
                 try:
                     wave, sr = sf.read(_norm_unsilenced_path)
                     if ap_post is None:
@@ -175,6 +188,7 @@ class TacotronDataset(Dataset):
                         continue
                 except RuntimeError:
                     # not sure why this sometimes happens, but it is very rare, so it should be fine.
+                    print("RuntimeError")
                     continue
             else:
                 wave, sr = sf.read(path)
@@ -188,6 +202,7 @@ class TacotronDataset(Dataset):
                 try:
                     norm_wave = ap.audio_to_wave_tensor(normalize=True, audio=wave)
                 except ValueError:
+                    print(f"ValueError {_norm_unsilenced_path} in normalization.")
                     continue
                 dur_in_seconds = len(norm_wave) / 16000
                 if not (min_len <= dur_in_seconds <= max_len):
@@ -208,15 +223,20 @@ class TacotronDataset(Dataset):
                                                        cached_speech,
                                                        cached_speech_len,
                                                        norm_wave.numpy(),
-                                                       norm_wave.cpu().detach().numpy()])
+                                                       norm_wave.cpu().detach().numpy(),
+                                                       path])
             else:
                 process_internal_dataset_chunk.append([cached_text,
                                                        cached_text_len,
                                                        cached_speech,
                                                        cached_speech_len,
-                                                       norm_wave.cpu().detach().numpy()])
-
+                                                       norm_wave.cpu().detach().numpy(),
+                                                       path])
+        
+        #print(len(self.datapoints))
+        #print(len(process_internal_dataset_chunk))
         self.datapoints += process_internal_dataset_chunk
+        i=i+1
 
     def __getitem__(self, index):
         if not self.speaker_embedding:

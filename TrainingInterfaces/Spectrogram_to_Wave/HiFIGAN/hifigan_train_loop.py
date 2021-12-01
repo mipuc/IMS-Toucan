@@ -13,7 +13,7 @@ from TrainingInterfaces.Spectrogram_to_Wave.HiFIGAN.AdversarialLosses import Gen
 from TrainingInterfaces.Spectrogram_to_Wave.HiFIGAN.FeatureMatchingLoss import FeatureMatchLoss
 from TrainingInterfaces.Spectrogram_to_Wave.HiFIGAN.MelSpectrogramLoss import MelSpectrogramLoss
 from Utility.utils import delete_old_checkpoints
-
+from Utility.utils import get_most_recent_checkpoint
 
 def train_loop(generator,
                discriminator,
@@ -24,7 +24,8 @@ def train_loop(generator,
                path_to_checkpoint=None,
                batch_size=32,
                steps=2500000,
-               use_signal_processing_losses=False):
+               use_signal_processing_losses=False,
+               resume=False):
     torch.backends.cudnn.benchmark = True
     # we have fixed input sizes, so we can enable benchmark mode
 
@@ -62,6 +63,9 @@ def train_loop(generator,
                               drop_last=True,
                               prefetch_factor=8,
                               persistent_workers=True)
+
+    if resume:
+        path_to_checkpoint = get_most_recent_checkpoint(checkpoint_dir=model_save_dir)
 
     if path_to_checkpoint is not None:
         check_dict = torch.load(path_to_checkpoint, map_location=device)
