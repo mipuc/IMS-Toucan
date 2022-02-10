@@ -23,6 +23,7 @@ class TacotronDataset(Dataset):
                  cache_dir,
                  lang,
                  speaker_embedding=False,
+                 speaker_embedding_type="combined",
                  loading_processes=8,
                  min_len_in_seconds=1,
                  max_len_in_seconds=20,
@@ -31,11 +32,13 @@ class TacotronDataset(Dataset):
                  rebuild_cache=False,
                  device="cpu"):
         self.speaker_embedding = speaker_embedding
+        self.speaker_embedding_type = speaker_embedding_type
+        self.taco_train_cache_name = "taco_train_cache_"+speaker_embedding_type+".pt"
         if remove_all_silences:
             os.makedirs(os.path.join(cache_dir, "unsilenced_audios"), exist_ok=True)
             os.makedirs(os.path.join(cache_dir, "normalized_unsilenced_audios"), exist_ok=True)
             os.makedirs(os.path.join(cache_dir, "normalized_audios"), exist_ok=True)
-        if not os.path.exists(os.path.join(cache_dir, "taco_train_cache.pt")) or rebuild_cache:
+        if not os.path.exists(os.path.join(cache_dir, self.taco_train_cache_name)) or rebuild_cache:
             resource_manager = Manager()
             self.path_to_transcript_dict = resource_manager.dict(path_to_transcript_dict)
             key_list = list(self.path_to_transcript_dict.keys())
@@ -73,36 +76,58 @@ class TacotronDataset(Dataset):
             norm_waves = list()
             if self.speaker_embedding:
                 if speaker_embedding:
-                    speaker_embedding_function_ecapa = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
-                                                                                      run_opts={"device": str(device)},
-                                                                                      savedir="Models/speechbrain_speaker_embedding_ecapa")
-                    speaker_embedding_function_xvector = EncoderClassifier.from_hparams(source="speechbrain/spkrec-xvect-voxceleb",
-                                                                                        run_opts={"device": str(device)},
-                                                                                        savedir="Models/speechbrain_speaker_embedding_xvector")
-                    wav2mel = torch.jit.load("Models/SpeakerEmbedding/wav2mel.pt")
-                    dvector = torch.jit.load("Models/SpeakerEmbedding/dvector-step250000.pt").to(device).eval()
+                    #speaker_embedding_function_ecapa = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",
+                    #                                                                  run_opts={"device": str(device)},
+                    #                                                                  savedir="Models/speechbrain_speaker_embedding_ecapa")
+                    #speaker_embedding_function_xvector = EncoderClassifier.from_hparams(source="speechbrain/spkrec-xvect-voxceleb",
+                    #                                                                    run_opts={"device": str(device)},
+                    #                                                                    savedir="Models/speechbrain_speaker_embedding_xvector")
+                    #wav2mel = torch.jit.load("Models/SpeakerEmbedding/wav2mel.pt")
+                    #dvector = torch.jit.load("Models/SpeakerEmbedding/dvector-step250000.pt").to(device).eval()
                     # everything assumes 16kHz audio as input here
                     for datapoint in tqdm(self.datapoints):
-                        print(datapoint[6])
-                        print(torch.Tensor(datapoint[5]).size())
+                        #print(datapoint[6])
+                        #print(torch.Tensor(datapoint[5]).size())
                         if not torch.Tensor(datapoint[5]).size(dim=0)>0:
                             print(f"Excluding {datapoint[6]} because of its duration of 0 after unsilencing.")
                             continue
-                        ecapa_spemb = speaker_embedding_function_ecapa.encode_batch(torch.Tensor(datapoint[4]).to(device)).flatten().detach().cpu()
-                        xvector_spemb = speaker_embedding_function_xvector.encode_batch(torch.Tensor(datapoint[4]).to(device)).flatten().detach().cpu()
-                        dvector_spemb = dvector.embed_utterance(wav2mel(torch.Tensor(datapoint[4]).unsqueeze(0), 16000).to(device)).flatten().detach().cpu()
-                        combined_spemb = torch.cat([ecapa_spemb, xvector_spemb, dvector_spemb], dim=0)
+                        #ecapa_spemb = speaker_embedding_function_ecapa.encode_batch(torch.Tensor(datapoint[4]).to(device)).flatten().detach().cpu()
+                        #xvector_spemb = speaker_embedding_function_xvector.encode_batch(torch.Tensor(datapoint[4]).to(device)).flatten().detach().cpu()
+                        #dvector_spemb = dvector.embed_utterance(wav2mel(torch.Tensor(datapoint[4]).unsqueeze(0), 16000).to(device)).flatten().detach().cpu()
+                        #combined_spemb = torch.cat([ecapa_spemb, xvector_spemb, dvector_spemb], dim=0)
+                        #get speaker name from path in datapoint[6]
+                        filename = os.path.basename(datapoint[6])
+                        spkname = filename[0:filename.find("_")] 
+                        spkembedfile = "Models/SpeakerEmbedding/" + spkname + ".pt"
+                        #print(filename)
+                        #print(spkname)
+                        print(spkembedfile)
+                        combined_spemb = torch.load(spkembedfile)
+
+                        use_spkemb = combined_spemb
+                        #ecapa embedding 192 entries
+                        if self.speaker_embedding_type=="ecapa":
+                            use_spkemb = combined_spemb[0:192]
+                         #xvector embedding 512 entries
+                        elif self.speaker_embedding_type=="xvector":
+                            use_spkemb = combined_spemb[192:192+512]
+                        #dvector embedding 256 entries
+                        elif self.speaker_embedding_type=="dvector":
+                            use_spkemb = combined_spemb[192+512:192+512+256]
+
+                        print(self.speaker_embedding_type)
+                        print(use_spkemb.size())
 
                         tensored_datapoints.append([torch.LongTensor(datapoint[0]),
                                                     torch.LongTensor(datapoint[1]),
                                                     torch.Tensor(datapoint[2]),
                                                     torch.LongTensor(datapoint[3]),
-                                                    combined_spemb])
+                                                    use_spkemb])
                         norm_waves.append(torch.Tensor(datapoint[-2]))
-                    del speaker_embedding_function_ecapa
-                    del speaker_embedding_function_xvector
-                    del wav2mel
-                    del dvector
+                    #del speaker_embedding_function_ecapa
+                    #del speaker_embedding_function_xvector
+                    #del wav2mel
+                    #del dvector
                 # loading the speaker embedding function messes up something in torchaudios resample layer.
                 # So you possibly need to restart the program after every dataset creation if you are using
                 # multiple datasets together.
@@ -119,10 +144,10 @@ class TacotronDataset(Dataset):
 
             self.datapoints = tensored_datapoints
             # save to cache
-            torch.save((self.datapoints, norm_waves), os.path.join(cache_dir, "taco_train_cache.pt"))
+            torch.save((self.datapoints, norm_waves), os.path.join(cache_dir, self.taco_train_cache_name))
         else:
             # just load the datapoints from cache
-            self.datapoints = torch.load(os.path.join(cache_dir, "taco_train_cache.pt"), map_location='cpu')
+            self.datapoints = torch.load(os.path.join(cache_dir, self.taco_train_cache_name), map_location='cpu')
 
             if isinstance(self.datapoints, tuple):  # check for backwards compatibility
                 self.datapoints = self.datapoints[0]

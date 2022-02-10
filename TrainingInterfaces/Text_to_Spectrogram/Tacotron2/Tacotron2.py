@@ -78,6 +78,7 @@ class Tacotron2(torch.nn.Module):
         self.odim = odim
         self.eos = idim - 1
         self.spk_embed_dim = spk_embed_dim
+        print(spk_embed_dim)
         self.cumulate_att_w = cumulate_att_w
         self.reduction_factor = reduction_factor
         self.use_guided_attn_loss = use_guided_attn_loss

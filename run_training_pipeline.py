@@ -69,6 +69,11 @@ if __name__ == '__main__':
                         help="Directory where the checkpoints should be saved to.",
                         default=None)
 
+    parser.add_argument('--speaker_embedding_type',
+                        type=str,
+                        help="combined, ecapa, xvector, or dvector",
+                        default="combined")
+
     args = parser.parse_args()
 
     if args.finetune and args.resume_checkpoint is None:
@@ -89,6 +94,7 @@ if __name__ == '__main__':
                                  resume_checkpoint=args.resume_checkpoint,
                                  resume=args.resume,
                                  finetune=args.finetune,
-                                 model_dir=args.model_save_dir)
+                                 model_dir=args.model_save_dir,
+                                 speaker_embedding_type=args.speaker_embedding_type)
 
 

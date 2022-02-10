@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
+
 import re
 import sys
+import os
 from collections import defaultdict
 
 import phonemizer
@@ -23,7 +26,8 @@ class TextFrontend:
                  silent=True,
                  allow_unknown=False,
                  inference=False,
-                 strip_silence=True):
+                 strip_silence=True,
+                 path_to_sampa_mapping_list="Preprocessing/sampa_to_ipa.txt"):
         """
         Mostly preparing ID lookups
         """
@@ -34,11 +38,21 @@ class TextFrontend:
         self.use_prosody = use_prosody
         self.use_stress = use_lexical_stress
         self.inference = inference
+        self.sampa_to_ipa_dict = dict()
         if allow_unknown:
             self.ipa_to_vector = defaultdict()
             self.default_vector = 165
         else:
             self.ipa_to_vector = dict()
+
+        with open(path_to_sampa_mapping_list, "r", encoding='utf8') as f:
+            sampa_to_ipa = f.read()
+        sampa_to_ipa_list = sampa_to_ipa.split("\n")
+        for pair in sampa_to_ipa_list:
+            if pair.strip() != "":
+                #print(pair)
+                self.sampa_to_ipa_dict[pair.split(" ")[0]] = pair.split(" ")[1]
+
         with open(path_to_phoneme_list, "r", encoding='utf8') as f:
             phonemes = f.read()
             # using https://github.com/espeak-ng/espeak-ng/blob/master/docs/phonemes.md
@@ -117,18 +131,26 @@ class TextFrontend:
             if not silent:
                 print("Created a French Text-Frontend")
 
+        elif language == "at-lab":
+            self.clean_lang = None
+            self.g2p_lang = "at-lab"
+            self.expand_abbreviations = lambda x: x
+            if not silent:
+                print("Created an Austrian German Text-Frontend")
+
         else:
             print("Language not supported yet")
             sys.exit()
 
-    def string_to_tensor(self, text, view=False):
+    def string_to_tensor(self, text, view=False, path_to_wavfile=""):
         """
         Fixes unicode errors, expands some abbreviations,
         turns graphemes into phonemes and then vectorizes
         the sequence as IDs to be fed into an embedding
         layer
         """
-        phones = self.get_phone_string(text=text, include_eos_symbol=False)
+        phones = self.get_phone_string(text=text, include_eos_symbol=False, path_to_wavfile=path_to_wavfile)
+
         if view:
             print("Phonemes: \n{}\n".format(phones))
         phones_vector = list()
@@ -145,7 +167,8 @@ class TextFrontend:
             phones_vector.append(self.ipa_to_vector["end_of_input"])
         return torch.LongTensor(phones_vector).unsqueeze(0)
 
-    def get_phone_string(self, text, include_eos_symbol=True):
+
+    def get_phone_string(self, text, include_eos_symbol=True, path_to_wavfile=""):
         # clean unicode errors, expand abbreviations, handle emojis etc.
         utt = clean(text, fix_unicode=True, to_ascii=False, lower=False, lang=self.clean_lang)
         self.expand_abbreviations(utt)
@@ -154,16 +177,19 @@ class TextFrontend:
         # phonemizer:
         utt = utt.replace("_SIL_", "~")
         # phonemize
-        phones = phonemizer.phonemize(utt,
-                                      language_switch='remove-flags',
-                                      backend="espeak",
-                                      language=self.g2p_lang,
-                                      preserve_punctuation=True,
-                                      strip=True,
-                                      punctuation_marks=';:,.!?¡¿—…"«»“”~/',
-                                      with_stress=self.use_stress).replace(";", ",").replace("/", " ") \
-            .replace(":", ",").replace('"', ",").replace("-", ",").replace("-", ",").replace("\n", " ") \
-            .replace("\t", " ").replace("¡", "").replace("¿", "").replace(",", "~")
+        if self.g2p_lang=="at-lab":
+            phones = self.phonemize_from_labelfile(text=utt, path_to_wavfile=path_to_wavfile, include_eos_symbol=False)
+        else:
+            phones = phonemizer.phonemize(utt,
+                                          language_switch='remove-flags',
+                                          backend="espeak",
+                                          language=self.g2p_lang,
+                                          preserve_punctuation=True,
+                                          strip=True,
+                                          punctuation_marks=';:,.!?¡¿—…"«»“”~/',
+                                          with_stress=self.use_stress).replace(";", ",").replace("/", " ") \
+                .replace(":", ",").replace('"', ",").replace("-", ",").replace("-", ",").replace("\n", " ") \
+                .replace("\t", " ").replace("¡", "").replace("¿", "").replace(",", "~")
         phones = re.sub("~+", "~", phones)
         if not self.use_prosody:
             # retain ~ as heuristic pause marker, even though all other symbols are removed with this option.
@@ -181,6 +207,40 @@ class TextFrontend:
         if include_eos_symbol:
             phones += "#"
         return phones
+
+    def phonemize_from_labelfile(self, text, path_to_wavfile, include_eos_symbol=True):
+        head, tail = os.path.split(path_to_wavfile)
+        labelfile=tail.replace(".wav",".lab")
+        print(labelfile)
+        sampa_phones=[]
+        phones=""
+        with open(os.path.join(head.replace("aridialect_wav16000","aridialect_labels"),labelfile), encoding="utf8") as f:
+            labels = f.read()
+        label_lines = labels.split("\n")
+        for line in label_lines:
+            if line.strip() != "":
+                sampa_phones.append(line[line.find("-")+1:line.find("+")])
+        #print(sampa_phones)
+        phones = self.sampa_to_ipa(sampa_phones)
+        if self.strip_silence:
+            phones = phones.lstrip("~").rstrip("~")
+        #preserve final punctuation
+        #print(text[len(text)-1])
+        #if ';:,.!?¡¿—…"«»“”~/'.find(text[len(text)-1].strip())!=-1:
+        #    phones = phones + text[len(text)-1].strip()
+        #print(phones)
+        return phones
+
+
+    def sampa_to_ipa(self, sampa_phones):
+        ipa_phones = ""
+        for p in sampa_phones:
+          ipa_phones = ipa_phones+self.sampa_to_ipa_dict[p]
+
+        return ipa_phones.replace(";", ",").replace("/", " ") \
+                .replace(":", ",").replace('"', ",").replace("-", ",").replace("-", ",").replace("\n", " ") \
+                .replace("\t", " ").replace("¡", "").replace("¿", "").replace(",", "~")
+
 
 
 def english_text_expansion(text):
@@ -201,10 +261,17 @@ def english_text_expansion(text):
 if __name__ == '__main__':
     # test an English utterance
     tfr_en = TextFrontend(language="en", use_word_boundaries=False, use_explicit_eos=False,
-                          path_to_phoneme_list="ipa_list.txt")
+                          path_to_phoneme_list="Preprocessing/ipa_list.txt")
     print(tfr_en.string_to_tensor("Hello world, this is a test!", view=True))
 
     # test a German utterance
     tfr_de = TextFrontend(language="de", use_word_boundaries=False, use_explicit_eos=False,
-                          path_to_phoneme_list="ipa_list.txt")
+                          path_to_phoneme_list="Preprocessing/ipa_list.txt")
     print(tfr_de.string_to_tensor("Hallo Welt, dies ist ein Test!", view=True))
+
+
+    tfr_at_lab = TextFrontend(language="at-lab", use_word_boundaries=False, use_explicit_eos=False,
+                          path_to_phoneme_list="Preprocessing/ipa_list.txt")
+    #uses the corresponding label file, which matches the *.wav file
+    print(tfr_at_lab.string_to_tensor("Hello world, this is a test!",  view=True, path_to_wavfile="/home/mpucher/data/aridialect/aridialect_wav16000/spo_at_falter060401bis060630_001683.wav"))
+
