@@ -15,19 +15,35 @@ from Preprocessing.TextFrontend import TextFrontend
 
 class aridialect_Tacotron2(torch.nn.Module):
 
-    def __init__(self, device="cpu", speaker_embedding=None):
+    def __init__(self, device="cpu", speaker_embedding=None, speaker_embedding_type=None):
         super().__init__()
         self.speaker_embedding = speaker_embedding
+        self.speaker_embedding_type = speaker_embedding_type
         self.device = device
+        self.spk_embed_dim = 960
+        print(speaker_embedding_type)
         if isinstance(speaker_embedding, torch.Tensor):
-            self.speaker_embedding = speaker_embedding
+            #ecapa embedding 192 entries
+            if self.speaker_embedding_type=="ecapa":
+                self.speaker_embedding = self.speaker_embedding[0:192]
+                self.spk_embed_dim = 192
+            #xvector embedding 512 entries
+            elif self.speaker_embedding_type=="xvector":
+                self.speaker_embedding = self.speaker_embedding[192:192+512]
+                self.spk_embed_dim = 512
+            #dvector embedding 256 entries
+            elif self.speaker_embedding_type=="dvector":
+                self.speaker_embedding = self.speaker_embedding[192+512:192+512+256]
+                self.spk_embed_dim = 256
+            else:
+                self.speaker_embedding = speaker_embedding
         else:
             self.speaker_embedding = torch.load(os.path.join("Models", "SpeakerEmbedding", speaker_embedding), map_location='cpu').to(
                 torch.device(device)).squeeze(0).squeeze(0)
         self.text2phone = TextFrontend(language="at-lab", use_word_boundaries=False,
                                        use_explicit_eos=False, inference=True)
-        self.phone2mel = Tacotron2(path_to_weights=os.path.join("Models", "Tacotron2_aridialect", "best.pt"),
-                                   idim=166, odim=80, spk_embed_dim=960, reduction_factor=1).to(torch.device(device))
+        self.phone2mel = Tacotron2(path_to_weights=os.path.join("Models", "Tacotron2_aridialect_"+str(self.speaker_embedding_type), "best.pt"),
+                                   idim=166, odim=80, spk_embed_dim=self.spk_embed_dim, reduction_factor=1).to(torch.device(device))
         self.mel2wav = HiFiGANGenerator(path_to_weights=os.path.join("Models", "HiFiGAN_aridialect", "best.pt")).to(torch.device(device))
         self.phone2mel.eval()
         self.mel2wav.eval()
@@ -36,23 +52,32 @@ class aridialect_Tacotron2(torch.nn.Module):
     def forward(self,view, path_to_wavfile):
         with torch.no_grad():
             #get spk_id from wavefile and compute speaker embedding
-            speaker_embedding_function_ecapa = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",run_opts={"device": str(self.device)},savedir="Models/speechbrain_speaker_embedding_ecapa")
-            speaker_embedding_function_xvector = EncoderClassifier.from_hparams(source="speechbrain/spkrec-xvect-voxceleb",run_opts={"device": str(self.device)},savedir="Models/speechbrain_speaker_embedding_xvector")
+            #speaker_embedding_function_ecapa = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb",run_opts={"device": str(self.device)},savedir="Models/speechbrain_speaker_embedding_ecapa")
+            #speaker_embedding_function_xvector = EncoderClassifier.from_hparams(source="speechbrain/spkrec-xvect-voxceleb",run_opts={"device": str(self.device)},savedir="Models/speechbrain_speaker_embedding_xvector")
 
-            wav2mel = torch.jit.load("Models/SpeakerEmbedding/wav2mel.pt")
-            dvector = torch.jit.load("Models/SpeakerEmbedding/dvector-step250000.pt").to(self.device).eval()
+            #wav2mel = torch.jit.load("Models/SpeakerEmbedding/wav2mel.pt")
+            #dvector = torch.jit.load("Models/SpeakerEmbedding/dvector-step250000.pt").to(self.device).eval()
 
-            datapoint, sample_rate = torchaudio.load(path_to_wavfile)
+            #datapoint, sample_rate = torchaudio.load(path_to_wavfile)
 
-            ecapa_spemb = speaker_embedding_function_ecapa.encode_batch(torch.Tensor(datapoint).to(self.device)).flatten().detach().cpu()
-            xvector_spemb = speaker_embedding_function_xvector.encode_batch(torch.Tensor(datapoint).to(self.device)).flatten().detach().cpu()
-            dvector_spemb = dvector.embed_utterance(wav2mel(torch.Tensor(datapoint), 16000).to(self.device)).flatten().detach().cpu()
-            combined_spemb = torch.cat([ecapa_spemb, xvector_spemb, dvector_spemb], dim=0)
+            #ecapa_spemb = speaker_embedding_function_ecapa.encode_batch(torch.Tensor(datapoint).to(self.device)).flatten().detach().cpu()
+            #xvector_spemb = speaker_embedding_function_xvector.encode_batch(torch.Tensor(datapoint).to(self.device)).flatten().detach().cpu()
+            #dvector_spemb = dvector.embed_utterance(wav2mel(torch.Tensor(datapoint), 16000).to(self.device)).flatten().detach().cpu()
+            #combined_spemb = torch.cat([ecapa_spemb, xvector_spemb, dvector_spemb], dim=0)
 
             #torch.save(cached_speaker_embedding, "Models/SpeakerEmbedding/aridialect_embedding.pt")
             #self.speaker_embedding = torch.load(os.path.join("Models", "SpeakerEmbedding", "aridialect_embedding.pt"), map_location='cpu').to(torch.device("cpu")).squeeze(0).squeeze(0)
+        
+            #filename = os.path.basename(path_to_wavfile)
+            #spkname = filename[0:filename.find("_")] 
+            #spkembedfile = "Models/SpeakerEmbedding/" + spkname + ".pt"
+            #print(filename)
+            #print(spkname)
+            #print(spkembedfile)
+            #combined_spemb = torch.load(spkembedfile)
+            #self.speaker_embedding = combined_spemb.to(self.device)
 
-            self.speaker_embedding = combined_spemb.to(self.device)
+            #self.speaker_embedding = combined_spemb.to(self.device)
 
             phones = self.text2phone.string_to_tensor(text="",view=False,path_to_wavfile=path_to_wavfile).squeeze(0).long().to(torch.device(self.device))
             mel = self.phone2mel(phones, speaker_embedding=self.speaker_embedding).transpose(0, 1)
@@ -68,6 +93,7 @@ class aridialect_Tacotron2(torch.nn.Module):
             plt.show()
 
         return wave
+
 
     def read_to_file(self, wav_list, file_location, silent=False):
         """
