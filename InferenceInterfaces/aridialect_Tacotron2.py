@@ -40,7 +40,9 @@ class aridialect_Tacotron2(torch.nn.Module):
         else:
             self.speaker_embedding = torch.load(os.path.join("Models", "SpeakerEmbedding", speaker_embedding), map_location='cpu').to(
                 torch.device(device)).squeeze(0).squeeze(0)
-        self.text2phone = TextFrontend(language="at-lab", use_word_boundaries=False,
+        #self.text2phone = TextFrontend(language="at-lab", use_word_boundaries=False,
+        #                               use_explicit_eos=False, inference=True)
+        self.text2phone = TextFrontend(language="at", use_word_boundaries=False,
                                        use_explicit_eos=False, inference=True)
         self.phone2mel = Tacotron2(path_to_weights=os.path.join("Models", "Tacotron2_aridialect_"+str(self.speaker_embedding_type), "best.pt"),
                                    idim=166, odim=80, spk_embed_dim=self.spk_embed_dim, reduction_factor=1).to(torch.device(device))
