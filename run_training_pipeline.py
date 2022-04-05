@@ -1,5 +1,7 @@
 import argparse
 import sys
+import configparser
+import os
 
 from TrainingInterfaces.TrainingPipelines.FastSpeech2_LJSpeech import run as fast_LJSpeech
 from TrainingInterfaces.TrainingPipelines.FastSpeech2_LibriTTS import run as fast_LibriTTS
@@ -14,6 +16,7 @@ from TrainingInterfaces.TrainingPipelines.Tacotron2_MultiEnglish import run as t
 from TrainingInterfaces.TrainingPipelines.Tacotron2_Nancy import run as taco_Nancy
 from TrainingInterfaces.TrainingPipelines.Tacotron2_Thorsten import run as taco_Thorsten
 from TrainingInterfaces.TrainingPipelines.Tacotron2_aridialect import run as taco_aridialect
+
 
 pipeline_dict = {
     "fast_thorsten": fast_Thorsten,
@@ -73,8 +76,18 @@ if __name__ == '__main__':
                         type=str,
                         help="combined, ecapa, xvector, or dvector",
                         default="combined")
+    parser.add_argument('--config',
+                        type=str,
+                        help="python config file",
+                        default="params.ini")
 
     args = parser.parse_args()
+
+    os.environ['TOUCAN_CONFIG_FILE'] = args.config
+    configparams =  configparser.ConfigParser()
+    configparams.read( os.environ.get('TOUCAN_CONFIG_FILE'))
+    print(configparams["TRAIN"]["labelfile"])
+    print(configparams["TRAIN"]["wavdir"])
 
     if args.finetune and args.resume_checkpoint is None:
         print("Need to provide path to checkpoint to fine-tune from!")
@@ -83,7 +96,7 @@ if __name__ == '__main__':
     if args.finetune and "hifigan" in args.pipeline:
         print("Fine-tuning for HiFiGAN is not implemented as it didn't seem necessary. Should generalize across speakers without fine-tuning.")
         sys.exit()
-  
+
     if args.pipeline=="hifi_combined":
         pipeline_dict[args.pipeline](gpu_id=args.gpu_id,
                                  resume_checkpoint=args.resume_checkpoint,
@@ -96,5 +109,3 @@ if __name__ == '__main__':
                                  finetune=args.finetune,
                                  model_dir=args.model_save_dir,
                                  speaker_embedding_type=args.speaker_embedding_type)
-
-
