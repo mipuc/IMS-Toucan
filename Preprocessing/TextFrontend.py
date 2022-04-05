@@ -8,7 +8,7 @@ from collections import defaultdict
 import phonemizer
 import torch
 from cleantext import clean
-
+from phonemizer.backend import FestivalBackend
 
 class TextFrontend:
 
@@ -39,6 +39,9 @@ class TextFrontend:
         self.use_stress = use_lexical_stress
         self.inference = inference
         self.sampa_to_ipa_dict = dict()
+        #FestivalBackend.set_festival_path("CSTR-HTSVoice-Library-ver0.99/festival/bin/festival --libdir CSTR-HTSVoice-Library-ver0.99/festival/lib/")
+        FestivalBackend.set_festival_path("CSTR-HTSVoice-Library-ver0.99/festival/bin/festival")
+
         if allow_unknown:
             self.ipa_to_vector = defaultdict()
             self.default_vector = 165
@@ -136,7 +139,23 @@ class TextFrontend:
             self.g2p_lang = "at-lab"
             self.expand_abbreviations = lambda x: x
             if not silent:
+                print("Created an Austrian German Label Text-Frontend")
+
+        elif language == "at":
+            self.clean_lang = "None"
+            self.g2p_lang = "at"
+            self.expand_abbreviations = lambda x: x
+            if not silent:
                 print("Created an Austrian German Text-Frontend")
+
+        elif language == "vd":
+            self.clean_lang = "None"
+            self.g2p_lang = "vd"
+            self.expand_abbreviations = lambda x: x
+            if not silent:
+                print("Created a Viennese Text-Frontend")
+
+
 
         else:
             print("Language not supported yet")
@@ -149,6 +168,7 @@ class TextFrontend:
         the sequence as IDs to be fed into an embedding
         layer
         """
+        #print(text)
         phones = self.get_phone_string(text=text, include_eos_symbol=False, path_to_wavfile=path_to_wavfile)
 
         if view:
@@ -179,6 +199,29 @@ class TextFrontend:
         # phonemize
         if self.g2p_lang=="at-lab":
             phones = self.phonemize_from_labelfile(text=utt, path_to_wavfile=path_to_wavfile, include_eos_symbol=False)
+        elif self.g2p_lang=="at" or self.g2p_lang=="vd": 
+            #print("now in at")
+            #print(text)
+            phones = phonemizer.phonemize(text=utt,
+                                          backend="festival",
+                                          language=self.g2p_lang,
+                                          preserve_punctuation=True,
+                                          #strip=False,
+                                          punctuation_marks=';:,.!?¡¿—…"«»“”~/'
+                                         )
+            #print("after phonemization")
+            #print(phones)
+            label_lines = phones.strip().split("\n")
+            #ipaphones=self.sampa_to_ipa(phones.split())
+            ipaphones=""
+            for line in label_lines:
+                sampa_phones=line.strip().split(" ")
+                #print(sampa_phones)
+                ipaphones = ipaphones + self.sampa_to_ipa(sampa_phones)
+                #ipaphones = ipaphones + "~"
+            #ipaphones = ipaphones
+            #print(ipaphones)
+            phones=ipaphones
         else:
             phones = phonemizer.phonemize(utt,
                                           language_switch='remove-flags',
@@ -235,7 +278,8 @@ class TextFrontend:
     def sampa_to_ipa(self, sampa_phones):
         ipa_phones = ""
         for p in sampa_phones:
-          ipa_phones = ipa_phones+self.sampa_to_ipa_dict[p]
+          if p not in ';:,.!?¡¿—…"«»“”~/':
+             ipa_phones = ipa_phones+self.sampa_to_ipa_dict[p]
 
         return ipa_phones.replace(";", ",").replace("/", " ") \
                 .replace(":", ",").replace('"', ",").replace("-", ",").replace("-", ",").replace("\n", " ") \
@@ -274,4 +318,3 @@ if __name__ == '__main__':
                           path_to_phoneme_list="Preprocessing/ipa_list.txt")
     #uses the corresponding label file, which matches the *.wav file
     print(tfr_at_lab.string_to_tensor("Hello world, this is a test!",  view=True, path_to_wavfile="/home/mpucher/data/aridialect/aridialect_wav16000/spo_at_falter060401bis060630_001683.wav"))
-

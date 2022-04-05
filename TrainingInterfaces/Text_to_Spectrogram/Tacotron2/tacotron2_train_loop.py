@@ -29,8 +29,10 @@ def plot_attention(model, lang, device, speaker_embedding, att_dir, step):
         sentence = "Aber die gibt es schon seit Jahrzehnten!"
 
     if lang == "at-lab":
-        text = tf.string_to_tensor(sentence, path_to_wavfile="/users/michael.pucher/data/aridialect/aridialect_wav16000/spo_at_falter060401bis060630_001683.wav").long().squeeze(0).to(device)
-        phones = tf.get_phone_string(sentence, path_to_wavfile="/users/michael.pucher/data/aridialect/aridialect_wav16000/spo_at_falter060401bis060630_001683.wav")
+        #text = tf.string_to_tensor(sentence, path_to_wavfile="/users/michael.pucher/data/aridialect/aridialect_wav16000/spo_at_falter060401bis060630_001683.wav").long().squeeze(0).to(device)
+        #phones = tf.get_phone_string(sentence, path_to_wavfile="/users/michael.pucher/data/aridialect/aridialect_wav16000/spo_at_falter060401bis060630_001683.wav")
+        text = tf.string_to_tensor(sentence, path_to_wavfile="/users/michael.pucher/data/aridialect/aridialect_wav16000/owe_at_hunger_453.wav").long().squeeze(0).to(device)
+        phones = tf.get_phone_string(sentence, path_to_wavfile="/users/michael.pucher/data/aridialect/aridialect_wav16000/owe_at_hunger_453.wav")
     else:
         text = tf.string_to_tensor(sentence).long().squeeze(0).to(device)
         phones = tf.get_phone_string(sentence)
@@ -217,7 +219,7 @@ def train_loop(net,
                         "scaler"      : scaler.state_dict(),
                         "step_counter": step_counter,
                         }, os.path.join(save_directory, "checkpoint_{}.pt".format(step_counter)))
-                    delete_old_checkpoints(save_directory, keep=5)
+                    #delete_old_checkpoints(save_directory, keep=5)
                     plot_attention(model=net,
                                    lang=lang,
                                    device=device,

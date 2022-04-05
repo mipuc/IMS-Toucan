@@ -1,14 +1,21 @@
 import os
+import configparser
+configparams =  configparser.ConfigParser()
 
 def build_path_to_transcript_dict_aridialect():
     path_to_transcript = dict()
-    with open("/users/michael.pucher/data/aridialect/train-text-pac.txt", encoding="utf8") as f:
+    configparams.read(os.environ.get('TOUCAN_CONFIG_FILE'))
+
+    print(configparams["TRAIN"]["labelfile"])
+    print(configparams["TRAIN"]["wavdir"])
+    #with open("/home/mipuc/data/aridialect/train-text-pac-owe.txt", encoding="utf8") as f:
+    with open(configparams["TRAIN"]["labelfile"], encoding="utf8") as f:
     #with open("/users/michael.pucher/data/aridialect/test-text.txt", encoding="utf8") as f:
         transcriptions = f.read()
     trans_lines = transcriptions.split("\n")
     for line in trans_lines:
         if line.strip() != "":
-            path_to_transcript["/users/michael.pucher/data/aridialect/aridialect_wav16000/" + line.split("|")[0] + ".wav"] = line.split("|")[1]
+            path_to_transcript[configparams["TRAIN"]["wavdir"] + line.split("|")[0] + ".wav"] = line.split("|")[1]
     return path_to_transcript
 
 

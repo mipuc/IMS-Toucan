@@ -15,13 +15,14 @@ from Preprocessing.TextFrontend import TextFrontend
 
 class aridialect_Tacotron2(torch.nn.Module):
 
-    def __init__(self, device="cpu", speaker_embedding=None, speaker_embedding_type=None):
+    def __init__(self, device="cpu", speaker_embedding=None, speaker_embedding_type=None, model_num=None):
         super().__init__()
         self.speaker_embedding = speaker_embedding
         self.speaker_embedding_type = speaker_embedding_type
         self.device = device
         self.spk_embed_dim = 960
-        print(speaker_embedding_type)
+        self.model_num = model_num
+        #print(speaker_embedding_type)
         if isinstance(speaker_embedding, torch.Tensor):
             #ecapa embedding 192 entries
             if self.speaker_embedding_type=="ecapa":
@@ -44,8 +45,10 @@ class aridialect_Tacotron2(torch.nn.Module):
         #                               use_explicit_eos=False, inference=True)
         self.text2phone = TextFrontend(language="at", use_word_boundaries=False,
                                        use_explicit_eos=False, inference=True)
-        self.phone2mel = Tacotron2(path_to_weights=os.path.join("Models", "Tacotron2_aridialect_"+str(self.speaker_embedding_type), "best.pt"),
-                                   idim=166, odim=80, spk_embed_dim=self.spk_embed_dim, reduction_factor=1).to(torch.device(device))
+        #self.phone2mel = Tacotron2(path_to_weights=os.path.join("Models", "Tacotron2_aridialect_"+str(self.speaker_embedding_type), "best.pt"), idim=166, odim=80, spk_embed_dim=self.spk_embed_dim, reduction_factor=1).to(torch.device(device))
+        modelname = os.path.join("Models",str(self.model_num)+".pt")
+        print(modelname)
+        self.phone2mel = Tacotron2(path_to_weights=modelname, idim=166, odim=80, spk_embed_dim=self.spk_embed_dim, reduction_factor=1).to(torch.device(device))
         self.mel2wav = HiFiGANGenerator(path_to_weights=os.path.join("Models", "HiFiGAN_aridialect", "best.pt")).to(torch.device(device))
         self.phone2mel.eval()
         self.mel2wav.eval()
@@ -69,9 +72,9 @@ class aridialect_Tacotron2(torch.nn.Module):
 
             #torch.save(cached_speaker_embedding, "Models/SpeakerEmbedding/aridialect_embedding.pt")
             #self.speaker_embedding = torch.load(os.path.join("Models", "SpeakerEmbedding", "aridialect_embedding.pt"), map_location='cpu').to(torch.device("cpu")).squeeze(0).squeeze(0)
-        
+
             #filename = os.path.basename(path_to_wavfile)
-            #spkname = filename[0:filename.find("_")] 
+            #spkname = filename[0:filename.find("_")]
             #spkembedfile = "Models/SpeakerEmbedding/" + spkname + ".pt"
             #print(filename)
             #print(spkname)
@@ -81,7 +84,7 @@ class aridialect_Tacotron2(torch.nn.Module):
 
             #self.speaker_embedding = combined_spemb.to(self.device)
 
-            phones = self.text2phone.string_to_tensor(text="",view=False,path_to_wavfile=path_to_wavfile).squeeze(0).long().to(torch.device(self.device))
+            phones = self.text2phone.string_to_tensor(text=path_to_wavfile,view=False,path_to_wavfile=path_to_wavfile).squeeze(0).long().to(torch.device(self.device))
             mel = self.phone2mel(phones, speaker_embedding=self.speaker_embedding).transpose(0, 1)
             wave = self.mel2wav(mel)
         if view:
@@ -97,7 +100,7 @@ class aridialect_Tacotron2(torch.nn.Module):
         return wave
 
 
-    def read_to_file(self, wav_list, file_location, silent=False):
+    def read_to_file(self, wav_list, file_location, silent=True):
         """
         :param silent: Whether to be verbose about the process
         :param text_list: A list of strings to be read
