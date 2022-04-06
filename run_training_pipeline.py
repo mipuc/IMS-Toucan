@@ -75,7 +75,7 @@ if __name__ == '__main__':
     parser.add_argument('--speaker_embedding_type',
                         type=str,
                         help="combined, ecapa, xvector, or dvector",
-                        default="combined")
+                        default=None)
     parser.add_argument('--config',
                         type=str,
                         help="python config file",
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     os.environ['TOUCAN_CONFIG_FILE'] = args.config
-    configparams =  configparser.ConfigParser()
+    configparams =  configparser.ConfigParser(allow_no_value=True)
     configparams.read( os.environ.get('TOUCAN_CONFIG_FILE'))
     print(configparams["TRAIN"]["labelfile"])
     print(configparams["TRAIN"]["wavdir"])
@@ -98,14 +98,14 @@ if __name__ == '__main__':
         sys.exit()
 
     if args.pipeline=="hifi_combined":
-        pipeline_dict[args.pipeline](gpu_id=args.gpu_id,
-                                 resume_checkpoint=args.resume_checkpoint,
-                                 finetune=args.finetune,
-                                 model_dir=args.model_save_dir)
+        pipeline_dict[args.pipeline](gpu_id=configparams["TRAIN"]["gpu_id"],
+                                 resume_checkpoint=configparams["TRAIN"]["resume_checkpoint"],
+                                 finetune=configparams["TRAIN"]["finetune"],
+                                 model_dir=configparams["TRAIN"]["model_save_dir"])
     else:
-        pipeline_dict[args.pipeline](gpu_id=args.gpu_id,
-                                 resume_checkpoint=args.resume_checkpoint,
-                                 resume=args.resume,
-                                 finetune=args.finetune,
-                                 model_dir=args.model_save_dir,
-                                 speaker_embedding_type=args.speaker_embedding_type)
+        pipeline_dict[args.pipeline](gpu_id=configparams["TRAIN"]["gpu_id"],
+                                 resume_checkpoint=configparams["TRAIN"]["resume_checkpoint"],
+                                 resume=configparams["TRAIN"]["resume"],
+                                 finetune=configparams["TRAIN"]["finetune"],
+                                 model_dir=configparams["TRAIN"]["model_save_dir"],
+                                 speaker_embedding_type=configparams["TRAIN"]["speaker_embedding_type"])

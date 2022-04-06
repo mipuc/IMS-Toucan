@@ -1,6 +1,7 @@
 import os
 import random
 import time
+import configparser
 
 import soundfile as sf
 import torch
@@ -33,7 +34,10 @@ class TacotronDataset(Dataset):
                  device="cpu"):
         self.speaker_embedding = speaker_embedding
         self.speaker_embedding_type = speaker_embedding_type
-        self.taco_train_cache_name = "taco_train_cache_"+speaker_embedding_type+".pt"
+        configparams =  configparser.ConfigParser()
+        configparams.read(os.environ.get('TOUCAN_CONFIG_FILE'))
+        #self.taco_train_cache_name = "taco_train_cache_"+speaker_embedding_type+".pt"
+        self.taco_train_cache_name = configparams["TRAIN"]["taco_train_cache_name"]
         if remove_all_silences:
             os.makedirs(os.path.join(cache_dir, "unsilenced_audios"), exist_ok=True)
             os.makedirs(os.path.join(cache_dir, "normalized_unsilenced_audios"), exist_ok=True)
@@ -97,7 +101,7 @@ class TacotronDataset(Dataset):
                         #combined_spemb = torch.cat([ecapa_spemb, xvector_spemb, dvector_spemb], dim=0)
                         #get speaker name from path in datapoint[6]
                         filename = os.path.basename(datapoint[6])
-                        spkname = filename[0:filename.find("_")] 
+                        spkname = filename[0:filename.find("_")]
                         spkembedfile = "Models/SpeakerEmbedding/" + spkname + ".pt"
                         #print(filename)
                         #print(spkname)
@@ -257,7 +261,7 @@ class TacotronDataset(Dataset):
                                                        cached_speech_len,
                                                        norm_wave.cpu().detach().numpy(),
                                                        path])
-        
+
         #print(len(self.datapoints))
         #print(len(process_internal_dataset_chunk))
         self.datapoints += process_internal_dataset_chunk

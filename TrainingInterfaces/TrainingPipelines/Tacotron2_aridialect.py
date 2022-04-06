@@ -36,20 +36,24 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, speaker_embeddin
 
     path_to_transcript_dict = build_path_to_transcript_dict()
 
-    spk_embed_dim=960
-    if speaker_embedding_type=="ecapa":
-        spk_embed_dim=192
-    elif speaker_embedding_type=="xvector":
-        spk_embed_dim=512
-    elif speaker_embedding_type=="dvector":
-        spk_embed_dim=256
+    speaker_embedding=False
+    spk_embed_dim=None
+    if speaker_embedding_type is not None:
+        speaker_embedding=True
+        spk_embed_dim=960
+        if speaker_embedding_type=="ecapa":
+            spk_embed_dim=192
+        elif speaker_embedding_type=="xvector":
+            spk_embed_dim=512
+        elif speaker_embedding_type=="dvector":
+            spk_embed_dim=256
 
     train_set = TacotronDataset(path_to_transcript_dict,
                                 cache_dir=cache_dir,
                                 lang="at-lab",
                                 min_len_in_seconds=1,
                                 max_len_in_seconds=16,
-                                speaker_embedding=True,
+                                speaker_embedding=speaker_embedding,
                                 speaker_embedding_type=speaker_embedding_type,
                                 cut_silences=True,
                                 rebuild_cache=True,
@@ -68,7 +72,7 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, speaker_embeddin
                #batch_size=64,  # this works for a 24GB GPU. For a smaller GPU, consider decreasing batchsize.
                batch_size=16,  # this works for a 24GB GPU. For a smaller GPU, consider decreasing batchsize.
                epochs_per_save=1,
-               use_speaker_embedding=True,
+               use_speaker_embedding=speaker_embedding,
                lang="at-lab",
                lr=0.001,
                path_to_checkpoint=resume_checkpoint,

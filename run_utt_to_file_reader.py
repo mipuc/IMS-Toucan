@@ -66,7 +66,7 @@ def read_write_utt(model_id, device, utt, wav, speaker, model_num, speed):
                 tsm.run(reader, writer)
         os.system("mv "+wav+".1 "+wav)
 
-        
+
 
 
 def read_harvard_sentences(model_id, device):
@@ -111,10 +111,14 @@ if __name__ == '__main__':
                         type=float,
                         help="speed to use",
                         default=1.0)
+    parser.add_argument('--modeldir',
+                        type=str,
+                        help="path to model that should be used",
+                        default="Models/owespkdep/40934.pt")
 
     args = parser.parse_args()
     print(args.utt)
-    
+
     speaker_model = args.voice[10:]
     myspeaker = speaker_model.split("_")[0]
     mymodelnum =speaker_model.split("_")[1]
