@@ -6,49 +6,63 @@ import sounddevice
 import soundfile
 import torch
 import torchaudio
+import configparser
 
 from speechbrain.pretrained import EncoderClassifier
 from InferenceInterfaces.InferenceArchitectures.InferenceHiFiGAN import HiFiGANGenerator
 from InferenceInterfaces.InferenceArchitectures.InferenceTacotron2 import Tacotron2
 from Preprocessing.TextFrontend import TextFrontend
-
+from Utility.utils import get_most_recent_checkpoint
 
 class aridialect_Tacotron2(torch.nn.Module):
 
     def __init__(self, device="cpu", speaker_embedding=None, speaker_embedding_type=None, model_num=None):
         super().__init__()
+        configparams =  configparser.ConfigParser(allow_no_value=True)
+        configparams.read( os.environ.get('TOUCAN_CONFIG_FILE'))
         self.speaker_embedding = speaker_embedding
         self.speaker_embedding_type = speaker_embedding_type
         self.device = device
-        self.spk_embed_dim = 960
+        self.spk_embed_dim = None
         self.model_num = model_num
         #print(speaker_embedding_type)
-        if isinstance(speaker_embedding, torch.Tensor):
-            #ecapa embedding 192 entries
-            if self.speaker_embedding_type=="ecapa":
-                self.speaker_embedding = self.speaker_embedding[0:192]
-                self.spk_embed_dim = 192
-            #xvector embedding 512 entries
-            elif self.speaker_embedding_type=="xvector":
-                self.speaker_embedding = self.speaker_embedding[192:192+512]
-                self.spk_embed_dim = 512
-            #dvector embedding 256 entries
-            elif self.speaker_embedding_type=="dvector":
-                self.speaker_embedding = self.speaker_embedding[192+512:192+512+256]
-                self.spk_embed_dim = 256
+        if speaker_embedding_type != "":
+            self.spk_embed_dim = 960
+            if isinstance(speaker_embedding, torch.Tensor):
+                #ecapa embedding 192 entries
+                if self.speaker_embedding_type=="ecapa":
+                    self.speaker_embedding = self.speaker_embedding[0:192]
+                    self.spk_embed_dim = 192
+                #xvector embedding 512 entries
+                elif self.speaker_embedding_type=="xvector":
+                    self.speaker_embedding = self.speaker_embedding[192:192+512]
+                    self.spk_embed_dim = 512
+                #dvector embedding 256 entries
+                elif self.speaker_embedding_type=="dvector":
+                    self.speaker_embedding = self.speaker_embedding[192+512:192+512+256]
+                    self.spk_embed_dim = 256
+                else:
+                    self.speaker_embedding = speaker_embedding
             else:
-                self.speaker_embedding = speaker_embedding
-        else:
-            self.speaker_embedding = torch.load(os.path.join("Models", "SpeakerEmbedding", speaker_embedding), map_location='cpu').to(
-                torch.device(device)).squeeze(0).squeeze(0)
+                self.speaker_embedding = torch.load(os.path.join("Models", "SpeakerEmbedding", speaker_embedding), map_location='cpu').to(torch.device(device)).squeeze(0).squeeze(0)
+
         #self.text2phone = TextFrontend(language="at-lab", use_word_boundaries=False,
         #                               use_explicit_eos=False, inference=True)
         self.text2phone = TextFrontend(language="at", use_word_boundaries=False,
                                        use_explicit_eos=False, inference=True)
         #self.phone2mel = Tacotron2(path_to_weights=os.path.join("Models", "Tacotron2_aridialect_"+str(self.speaker_embedding_type), "best.pt"), idim=166, odim=80, spk_embed_dim=self.spk_embed_dim, reduction_factor=1).to(torch.device(device))
-        modelname = os.path.join("Models",str(self.model_num)+".pt")
+        #modelname = os.path.join("Models",str(self.model_num)+".pt")
+        modelname = self.model_num
         print(modelname)
         self.phone2mel = Tacotron2(path_to_weights=modelname, idim=166, odim=80, spk_embed_dim=self.spk_embed_dim, reduction_factor=1).to(torch.device(device))
+
+        model_num = None
+        if configparams["INF"]["hifi_model"] != "":
+            model_num = model
+        else:
+            model_num = get_most_recent_checkpoint(configparams["INF"]["hifi_model_dir"])
+        print(model_num)
+
         self.mel2wav = HiFiGANGenerator(path_to_weights=os.path.join("Models", "HiFiGAN_aridialect", "best.pt")).to(torch.device(device))
         self.phone2mel.eval()
         self.mel2wav.eval()

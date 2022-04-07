@@ -233,7 +233,9 @@ class TextFrontend:
                                           with_stress=self.use_stress).replace(";", ",").replace("/", " ") \
                 .replace(":", ",").replace('"', ",").replace("-", ",").replace("-", ",").replace("\n", " ") \
                 .replace("\t", " ").replace("¡", "").replace("¿", "").replace(",", "~")
+            #print(phones)
         phones = re.sub("~+", "~", phones)
+        
         if not self.use_prosody:
             # retain ~ as heuristic pause marker, even though all other symbols are removed with this option.
             # also retain . ? and ! since they can be indicators for the stop token
