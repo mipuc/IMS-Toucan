@@ -207,7 +207,8 @@ class FestivalBackend(BaseBackend):
                         scm.write(scm_script)
                         scm.close()
 
-                        cmd = '{} --libdir /home/mipuc/IMS-Toucan/CSTR-HTSVoice-Library-ver0.99/festival/lib -b {}'.format(self.festival_path(), scm.name)
+                        #cmd = '{} --libdir /home/mipuc/IMS-Toucan/CSTR-HTSVoice-Library-ver0.99/festival/lib -b {}'.format(self.festival_path(), scm.name)
+                        cmd = '{} --libdir CSTR-HTSVoice-Library-ver0.99/festival/lib -b {}'.format(self.festival_path(), scm.name)
                         #print(cmd)
                         if self.logger:
                             self.logger.debug('running %s', cmd)

@@ -67,7 +67,7 @@ def train_loop(generator,
     if resume:
         path_to_checkpoint = get_most_recent_checkpoint(checkpoint_dir=model_save_dir)
 
-    if path_to_checkpoint is not None:
+    if path_to_checkpoint != "":
         check_dict = torch.load(path_to_checkpoint, map_location=device)
         optimizer_g.load_state_dict(check_dict["generator_optimizer"])
         optimizer_d.load_state_dict(check_dict["discriminator_optimizer"])

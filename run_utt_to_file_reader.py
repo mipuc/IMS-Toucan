@@ -2,6 +2,7 @@ import os
 
 import torch
 import argparse
+import configparser
 
 from InferenceInterfaces.LJSpeech_FastSpeech2 import LJSpeech_FastSpeech2
 from InferenceInterfaces.LJSpeech_Tacotron2 import LJSpeech_Tacotron2
@@ -115,9 +116,17 @@ if __name__ == '__main__':
                         type=str,
                         help="path to model that should be used",
                         default="Models/owespkdep/40934.pt")
+    parser.add_argument('--config',
+                        type=str,
+                        help="python config file",
+                        default="params.ini")
 
     args = parser.parse_args()
-    print(args.utt)
+
+    os.environ['TOUCAN_CONFIG_FILE'] = args.config
+    configparams =  configparser.ConfigParser(allow_no_value=True)
+    configparams.read( os.environ.get('TOUCAN_CONFIG_FILE'))
+    print(configparams["TRAIN"]["labelfile"])
 
     speaker_model = args.voice[10:]
     myspeaker = speaker_model.split("_")[0]
@@ -125,7 +134,7 @@ if __name__ == '__main__':
     print(myspeaker)
     print(mymodelnum)
 
-    read_write_utt(model_id="taco_aridialect", device=exec_device, utt=args.utt, wav=args.wav, speaker=myspeaker, model_num=mymodelnum, speed=args.speed)
+    read_write_utt(model_id="taco_aridialect", device=exec_device, utt=args.utt, wav=args.wav, speaker=myspeaker, model_num=mymodelnum, speed=float(configparams["INF"]["speech"]))
 
     #read_aridialect_sentences(model_id="taco_aridialect", device=exec_device, spklist=args.spklist, alpha=args.alpha, speaker_embedding_type=args.speaker_embedding_type)
     #read_harvard_sentences(model_id="fast_lj", device=exec_device)

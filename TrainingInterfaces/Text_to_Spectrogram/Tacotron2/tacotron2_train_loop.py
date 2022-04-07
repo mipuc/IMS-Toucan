@@ -139,7 +139,7 @@ def train_loop(net,
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
     if resume:
         path_to_checkpoint = get_most_recent_checkpoint(checkpoint_dir=save_directory)
-    if path_to_checkpoint is not None:
+    if path_to_checkpoint != "":
         # careful when restarting, plotting data will be overwritten!
         check_dict = torch.load(os.path.join(path_to_checkpoint), map_location=device)
         net.load_state_dict(check_dict["model"])
@@ -219,7 +219,7 @@ def train_loop(net,
                         "scaler"      : scaler.state_dict(),
                         "step_counter": step_counter,
                         }, os.path.join(save_directory, "checkpoint_{}.pt".format(step_counter)))
-                    #delete_old_checkpoints(save_directory, keep=5)
+                    delete_old_checkpoints(save_directory, keep=5)
                     plot_attention(model=net,
                                    lang=lang,
                                    device=device,

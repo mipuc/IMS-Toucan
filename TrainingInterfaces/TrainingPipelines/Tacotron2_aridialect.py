@@ -2,6 +2,7 @@ import os
 import random
 
 import torch
+import configparser
 
 from TrainingInterfaces.Text_to_Spectrogram.Tacotron2.Tacotron2 import Tacotron2
 from TrainingInterfaces.Text_to_Spectrogram.Tacotron2.TacotronDataset import TacotronDataset
@@ -10,6 +11,10 @@ from Utility.path_to_transcript_dicts import build_path_to_transcript_dict_aridi
 
 
 def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, speaker_embedding_type):
+
+    configparams =  configparser.ConfigParser(allow_no_value=True)
+    configparams.read(os.environ.get('TOUCAN_CONFIG_FILE'))
+
     if gpu_id == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
         device = torch.device("cpu")
@@ -36,10 +41,9 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, speaker_embeddin
 
     path_to_transcript_dict = build_path_to_transcript_dict()
 
-    speaker_embedding=False
+    speaker_embedding=configparams["TRAIN"].getboolean("speaker_embedding")
     spk_embed_dim=None
-    if speaker_embedding_type is not None:
-        speaker_embedding=True
+    if speaker_embedding:
         spk_embed_dim=960
         if speaker_embedding_type=="ecapa":
             spk_embed_dim=192
@@ -50,7 +54,7 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, speaker_embeddin
 
     train_set = TacotronDataset(path_to_transcript_dict,
                                 cache_dir=cache_dir,
-                                lang="at-lab",
+                                lang=configparams["TRAIN"]["language"],
                                 min_len_in_seconds=1,
                                 max_len_in_seconds=16,
                                 speaker_embedding=speaker_embedding,
@@ -73,7 +77,7 @@ def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, speaker_embeddin
                batch_size=16,  # this works for a 24GB GPU. For a smaller GPU, consider decreasing batchsize.
                epochs_per_save=1,
                use_speaker_embedding=speaker_embedding,
-               lang="at-lab",
+               lang=configparams["TRAIN"]["language"],
                lr=0.001,
                path_to_checkpoint=resume_checkpoint,
                fine_tune=finetune,

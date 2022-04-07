@@ -32,12 +32,12 @@ class TacotronDataset(Dataset):
                  remove_all_silences=True,
                  rebuild_cache=False,
                  device="cpu"):
-        self.speaker_embedding = speaker_embedding
-        self.speaker_embedding_type = speaker_embedding_type
         configparams =  configparser.ConfigParser()
         configparams.read(os.environ.get('TOUCAN_CONFIG_FILE'))
         #self.taco_train_cache_name = "taco_train_cache_"+speaker_embedding_type+".pt"
         self.taco_train_cache_name = configparams["TRAIN"]["taco_train_cache_name"]
+        self.speaker_embedding = configparams["TRAIN"].getboolean("speaker_embedding")
+        self.speaker_embedding_type = configparams["TRAIN"]["speaker_embedding_type"]
         if remove_all_silences:
             os.makedirs(os.path.join(cache_dir, "unsilenced_audios"), exist_ok=True)
             os.makedirs(os.path.join(cache_dir, "normalized_unsilenced_audios"), exist_ok=True)

@@ -10,7 +10,7 @@ from Utility.file_lists import *
 from Utility.utils import get_most_recent_checkpoint
 
 
-def run(gpu_id, resume_checkpoint, finetune, model_dir, resume):
+def run(gpu_id, resume_checkpoint, finetune, model_dir, resume, speaker_embedding_type):
     if gpu_id == "cpu":
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
         device = torch.device("cpu")

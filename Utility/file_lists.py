@@ -1,14 +1,17 @@
 import os
-
-
+import configparser
+configparams =  configparser.ConfigParser()
 
 def get_file_list_aridialect():
-    path_train = "/users/michael.pucher/data/aridialect"
+    configparams.read(os.environ.get('TOUCAN_CONFIG_FILE'))
+
+    #path_train = "/users/michael.pucher/data/aridialect"
     file_list = list()
     #with open(os.path.join(path_train, "train-text.txt")) as file:
-    with open(os.path.join(path_train, "train-text.txt")) as file:
+    #with open(os.path.join(path_train, "train-text.txt")) as file:
+    with open(configparams["TRAIN"]["labelfile"]) as file:
         filenames = file.readlines()
-        file_list = [os.path.join(path_train,"aridialect_wav16000",line.rstrip().split("|")[0]+".wav") for line in filenames]
+        file_list = [os.path.join(configparams["TRAIN"]["wavdir"],line.rstrip().split("|")[0]+".wav") for line in filenames]
     #print(file_list)
     return file_list
 

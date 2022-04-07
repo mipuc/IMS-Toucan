@@ -43,43 +43,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='IMS Speech Synthesis Toolkit - Call to Train')
 
-    parser.add_argument('pipeline',
-                        choices=list(pipeline_dict.keys()),
-                        help="Select pipeline to train.")
-
-    parser.add_argument('--gpu_id',
-                        type=str,
-                        help="Which GPU to run on. If not specified runs on CPU, but other than for integration tests that doesn't make much sense.",
-                        default="cpu")
-
-    parser.add_argument('--resume_checkpoint',
-                        type=str,
-                        help="Path to checkpoint to resume from.",
-                        default=None)
-
-    parser.add_argument('--resume',
-                        action="store_true",
-                        help="Automatically load the highest checkpoint and continue from there.",
-                        default=False)
-
-    parser.add_argument('--finetune',
-                        action="store_true",
-                        help="Whether to fine-tune from the specified checkpoint.",
-                        default=False)
-
-    parser.add_argument('--model_save_dir',
-                        type=str,
-                        help="Directory where the checkpoints should be saved to.",
-                        default=None)
-
-    parser.add_argument('--speaker_embedding_type',
-                        type=str,
-                        help="combined, ecapa, xvector, or dvector",
-                        default=None)
     parser.add_argument('--config',
                         type=str,
-                        help="python config file",
-                        default="params.ini")
+                        help="python config file")
 
     args = parser.parse_args()
 
@@ -89,23 +55,25 @@ if __name__ == '__main__':
     print(configparams["TRAIN"]["labelfile"])
     print(configparams["TRAIN"]["wavdir"])
 
-    if args.finetune and args.resume_checkpoint is None:
+    if configparams["TRAIN"].getboolean("finetune") and configparams["TRAIN"]["resume_checkpoint"] == "":
         print("Need to provide path to checkpoint to fine-tune from!")
         sys.exit()
 
-    if args.finetune and "hifigan" in args.pipeline:
+    if configparams["TRAIN"].getboolean("finetune") and "hifigan" in configparams["TRAIN"]["pipeline"]:
         print("Fine-tuning for HiFiGAN is not implemented as it didn't seem necessary. Should generalize across speakers without fine-tuning.")
         sys.exit()
 
-    if args.pipeline=="hifi_combined":
-        pipeline_dict[args.pipeline](gpu_id=configparams["TRAIN"]["gpu_id"],
+    if configparams["TRAIN"]["pipeline"]=="hifi_combined":
+        pipeline_dict[configparams["TRAIN"]["pipeline"]](gpu_id=configparams["TRAIN"]["gpu_id"],
                                  resume_checkpoint=configparams["TRAIN"]["resume_checkpoint"],
-                                 finetune=configparams["TRAIN"]["finetune"],
+                                 finetune=configparams["TRAIN"].getboolean("finetune"),
                                  model_dir=configparams["TRAIN"]["model_save_dir"])
     else:
-        pipeline_dict[args.pipeline](gpu_id=configparams["TRAIN"]["gpu_id"],
+        pipeline_dict[configparams["TRAIN"]["pipeline"]](gpu_id=configparams["TRAIN"]["gpu_id"],
                                  resume_checkpoint=configparams["TRAIN"]["resume_checkpoint"],
-                                 resume=configparams["TRAIN"]["resume"],
-                                 finetune=configparams["TRAIN"]["finetune"],
+                                 resume=configparams["TRAIN"].getboolean("resume"),
+                                 finetune=configparams["TRAIN"].getboolean("finetune"),
                                  model_dir=configparams["TRAIN"]["model_save_dir"],
                                  speaker_embedding_type=configparams["TRAIN"]["speaker_embedding_type"])
+
+
