@@ -139,7 +139,7 @@ class Tacotron2(torch.nn.Module):
                                                  alpha=guided_attn_loss_lambda, )
         if self.use_dtw_loss:
             self.dtw_criterion = SoftDTW(use_cuda=True, gamma=0.1)
-
+        print(path_to_weights)
         self.load_state_dict(torch.load(path_to_weights, map_location='cpu')["model"])
 
     def forward(self, text,
