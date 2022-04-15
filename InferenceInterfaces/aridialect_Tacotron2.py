@@ -7,6 +7,9 @@ import soundfile
 import torch
 import torchaudio
 import configparser
+import soundfile as sf
+from Preprocessing.AudioPreprocessor import AudioPreprocessor
+from Preprocessing.TextFrontend import TextFrontend
 
 from speechbrain.pretrained import EncoderClassifier
 from InferenceInterfaces.InferenceArchitectures.InferenceHiFiGAN import HiFiGANGenerator
@@ -16,7 +19,7 @@ from Utility.utils import get_most_recent_checkpoint
 
 class aridialect_Tacotron2(torch.nn.Module):
 
-    def __init__(self, device="cpu", speaker_embedding=None, speaker_embedding_type=None, model_num=None):
+    def __init__(self, device="cpu", speaker_embedding=None, speaker_embedding_type=None, model_num=None, style_embed_wav=None):
         super().__init__()
         configparams =  configparser.ConfigParser(allow_no_value=True)
         configparams.read( os.environ.get('TOUCAN_CONFIG_FILE'))
@@ -54,7 +57,12 @@ class aridialect_Tacotron2(torch.nn.Module):
         #modelname = os.path.join("Models",str(self.model_num)+".pt")
         modelname = self.model_num
         print(modelname)
-        self.phone2mel = Tacotron2(path_to_weights=modelname, idim=166, odim=80, spk_embed_dim=self.spk_embed_dim, reduction_factor=1).to(torch.device(device))
+        #compute style_embed_features from style_embed_wav
+        if  configparams["TRAIN"].getboolean("use_gst"):
+            tf = TextFrontend(language="at", use_word_boundaries=False, use_explicit_eos=False)
+            cached_speech = tf.wav_to_mel_tensor(style_embed_wav)
+
+        self.phone2mel = Tacotron2(path_to_weights=modelname, style_embed_features=cached_speech, idim=166, odim=80, spk_embed_dim=self.spk_embed_dim, reduction_factor=1).to(torch.device(device))
 
         model_num = None
         if configparams["INF"]["hifi_model"] != "":

@@ -38,7 +38,8 @@ def plot_attention(model, lang, device, speaker_embedding, att_dir, step):
         phones = tf.get_phone_string(sentence)
 
     model.eval()
-    att = model.inference(text=text, speaker_embeddings=speaker_embedding)[2].to("cpu")
+    melembed=tf.wav_to_mel_tensor("/home/mipuc/data/aridialect/aridialect_wav16000/owe_at_hunger_453.wav")
+    att = model.inference(text=text, speech=melembed.to("cuda"), speaker_embeddings=speaker_embedding)[2].to("cpu")
     model.train()
     del tf
     bin_att = binarize_attention_parallel(att.unsqueeze(0).unsqueeze(1),

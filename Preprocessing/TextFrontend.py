@@ -9,6 +9,12 @@ import phonemizer
 import torch
 from cleantext import clean
 from phonemizer.backend import FestivalBackend
+import torchaudio
+import configparser
+import soundfile as sf
+from Preprocessing.AudioPreprocessor import AudioPreprocessor
+from numpy import trim_zeros
+from unsilence import Unsilence
 
 class TextFrontend:
 
@@ -161,6 +167,27 @@ class TextFrontend:
             print("Language not supported yet")
             sys.exit()
 
+    def wav_to_mel_tensor(self, wavpath):
+        wave, sr = sf.read(wavpath)
+        cut_silences=True
+        ap = AudioPreprocessor(input_sr=sr, output_sr=None, melspec_buckets=80, hop_length=256, n_fft=1024, cut_silence=cut_silences)
+        norm_wave = ap.audio_to_wave_tensor(normalize=True, audio=wave)
+        _norm_path=wavpath+"norm.wav"
+        _norm_unsilenced_path=wavpath+"normunsilenced.wav"
+        sf.write(file=_norm_path, data=norm_wave.detach().numpy(), samplerate=sr)
+        unsilence = Unsilence(_norm_path)
+        unsilence.detect_silence(silence_time_threshold=0.5, short_interval_threshold=0.03, stretch_time=0.025)
+        unsilence.render_media(_norm_unsilenced_path, silent_speed=12, silent_volume=0, audio_only=True)
+        wave, sr = sf.read(_norm_unsilenced_path)
+        ap_post = AudioPreprocessor(input_sr=sr, output_sr=16000, melspec_buckets=80, hop_length=256, n_fft=1024, cut_silence=cut_silences)
+        norm_wave = ap_post.resample(torch.Tensor(wave))
+        norm_wave = torch.tensor(trim_zeros(norm_wave.numpy()))
+        os.system("rm "+_norm_path)
+        os.system("rm "+_norm_unsilenced_path)
+        cached_speech = ap.audio_to_mel_spec_tensor(audio=norm_wave, normalize=False).transpose(0, 1)
+        print(len(cached_speech))
+        return cached_speech
+
     def string_to_tensor(self, text, view=False, path_to_wavfile=""):
         """
         Fixes unicode errors, expands some abbreviations,
@@ -199,7 +226,7 @@ class TextFrontend:
         # phonemize
         if self.g2p_lang=="at-lab":
             phones = self.phonemize_from_labelfile(text=utt, path_to_wavfile=path_to_wavfile, include_eos_symbol=False)
-        elif self.g2p_lang=="at" or self.g2p_lang=="vd": 
+        elif self.g2p_lang=="at" or self.g2p_lang=="vd":
             #print("now in at")
             #print(text)
             phones = phonemizer.phonemize(text=utt,
@@ -235,7 +262,7 @@ class TextFrontend:
                 .replace("\t", " ").replace("¡", "").replace("¿", "").replace(",", "~")
             #print(phones)
         phones = re.sub("~+", "~", phones)
-        
+
         if not self.use_prosody:
             # retain ~ as heuristic pause marker, even though all other symbols are removed with this option.
             # also retain . ? and ! since they can be indicators for the stop token
