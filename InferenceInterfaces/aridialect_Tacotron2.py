@@ -56,6 +56,7 @@ class aridialect_Tacotron2(torch.nn.Module):
         print(modelname)
         self.phone2mel = Tacotron2(path_to_weights=modelname, idim=166, odim=80, spk_embed_dim=self.spk_embed_dim, reduction_factor=1).to(torch.device(device))
 
+        print("Hifimodel: "+configparams["INF"]["hifi_model_dir"])
         model_num = None
         if configparams["INF"]["hifi_model"] != "":
             model_num = model
@@ -63,7 +64,8 @@ class aridialect_Tacotron2(torch.nn.Module):
             model_num = get_most_recent_checkpoint(configparams["INF"]["hifi_model_dir"])
         print(model_num)
 
-        self.mel2wav = HiFiGANGenerator(path_to_weights=os.path.join("Models", "HiFiGAN_aridialect", "best.pt")).to(torch.device(device))
+        #self.mel2wav = HiFiGANGenerator(path_to_weights=os.path.join("Models", "HiFiGAN_aridialect", "best.pt")).to(torch.device(device))
+        self.mel2wav = HiFiGANGenerator(path_to_weights=model_num).to(torch.device(device))
         self.phone2mel.eval()
         self.mel2wav.eval()
         self.to(torch.device(device))
