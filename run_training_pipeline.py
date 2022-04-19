@@ -16,6 +16,7 @@ from TrainingInterfaces.TrainingPipelines.Tacotron2_MultiEnglish import run as t
 from TrainingInterfaces.TrainingPipelines.Tacotron2_Nancy import run as taco_Nancy
 from TrainingInterfaces.TrainingPipelines.Tacotron2_Thorsten import run as taco_Thorsten
 from TrainingInterfaces.TrainingPipelines.Tacotron2_aridialect import run as taco_aridialect
+from Preprocessing.TextFrontend import TextFrontend
 
 
 pipeline_dict = {
@@ -49,9 +50,13 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    #tf = TextFrontend(language="at", use_word_boundaries=False, use_explicit_eos=False)
+    #tff = tf.wav_to_mel_tensor("/home/mipuc/data/aridialect/aridialect_wav16000/owe_at_hunger_453.wav")
+    #print(tff)
+
     os.environ['TOUCAN_CONFIG_FILE'] = args.config
     configparams =  configparser.ConfigParser(allow_no_value=True)
-    configparams.read( os.environ.get('TOUCAN_CONFIG_FILE'))
+    configparams.read(os.environ.get('TOUCAN_CONFIG_FILE'))
     print(configparams["TRAIN"]["labelfile"])
     print(configparams["TRAIN"]["wavdir"])
 
@@ -75,5 +80,3 @@ if __name__ == '__main__':
                                  finetune=configparams["TRAIN"].getboolean("finetune"),
                                  model_dir=configparams["TRAIN"]["model_save_dir"],
                                  speaker_embedding_type=configparams["TRAIN"]["speaker_embedding_type"])
-
-

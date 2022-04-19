@@ -34,7 +34,7 @@ tts_dict = {
     }
 
 
-def read_write_utt():
+def read_write_utt(style_embed_wav):
 
     exec_device = "cuda" if torch.cuda.is_available() else "cpu"
     configparams =  configparser.ConfigParser(allow_no_value=True)
@@ -66,14 +66,19 @@ def read_write_utt():
     print(model_num)
     model_id = os.path.basename(model_num).split('.')[0]
 
-    output_dir = os.path.join(output_dir, model_id)
+    style=""
+    if configparams["TRAIN"]["use_gst"]:
+        style = os.path.basename(style_embed_wav).split("_")[0]
+    print(style)
+
+    output_dir = os.path.join(output_dir, model_id, style)
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
 
     for index, sent in enumerate(sents):
         print(sent)
         sentid= sent.split("|")[0]
-        tts = tts_dict[configparams["TRAIN"]["pipeline"]](device=exec_device, speaker_embedding=combined_spemb, speaker_embedding_type=speaker_embedding_type, model_num=model_num)
+        tts = tts_dict[configparams["TRAIN"]["pipeline"]](device=exec_device, speaker_embedding=combined_spemb, speaker_embedding_type=speaker_embedding_type, model_num=model_num, style_embed_wav=style_embed_wav)
         wav = os.path.join(output_dir,sentid+".wav")
         tts.read_to_file(wav_list=[sent.split("|")[1]], file_location=wav)
 
@@ -93,14 +98,17 @@ if __name__ == '__main__':
         os.makedirs("audios")
 
     parser = argparse.ArgumentParser(description='Synthesize list of utterances and write to directory')
+
     parser.add_argument('--config',
                         type=str,
                         help="python config file")
+
+    parser.add_argument('--style_embed_wav',
+                        type=str,
+                        default="styles/dramatisch_owe_at_DerSchauende_14.wav")
 
     args = parser.parse_args()
 
     os.environ['TOUCAN_CONFIG_FILE'] = args.config
 
-    read_write_utt()
-
-  
+    read_write_utt(args.style_embed_wav)

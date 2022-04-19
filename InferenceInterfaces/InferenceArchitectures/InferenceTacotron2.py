@@ -8,7 +8,10 @@ from Layers.RNNAttention import AttLoc
 from Layers.TacotronDecoder import Decoder
 from Layers.TacotronEncoder import Encoder
 from Utility.SoftDTW.sdtw_cuda_loss import SoftDTW
-
+from Layers.StyleEncoder import StyleEncoder
+from typing import Sequence
+import configparser
+import os
 
 class Tacotron2(torch.nn.Module):
 
@@ -18,6 +21,7 @@ class Tacotron2(torch.nn.Module):
             path_to_weights,
             idim,
             odim,
+            style_embed_features=None,
             embed_dim=512,
             elayers=1,
             eunits=512,
@@ -42,6 +46,15 @@ class Tacotron2(torch.nn.Module):
             use_residual=False,
             reduction_factor=1,
             spk_embed_dim=None,
+            use_gst: bool = False,
+            gst_tokens: int = 10,
+            gst_heads: int = 4,
+            gst_conv_layers: int = 6,
+            gst_conv_chans_list: Sequence[int] = (32, 32, 64, 64, 128, 128),
+            gst_conv_kernel_size: int = 3,
+            gst_conv_stride: int = 2,
+            gst_gru_layers: int = 1,
+            gst_gru_units: int = 128,
             # training related
             dropout_rate=0.5,
             zoneout_rate=0.1,
@@ -56,6 +69,8 @@ class Tacotron2(torch.nn.Module):
             speaker_embedding_projection_size=64):
         super().__init__()
 
+        configparams =  configparser.ConfigParser(allow_no_value=True)
+        configparams.read(os.environ.get('TOUCAN_CONFIG_FILE'))
         # store hyperparameters
         self.use_dtw_loss = use_dtw_loss
         self.idim = idim
@@ -64,6 +79,9 @@ class Tacotron2(torch.nn.Module):
         self.spk_embed_dim = spk_embed_dim
         self.cumulate_att_w = cumulate_att_w
         self.reduction_factor = reduction_factor
+        self.use_gst = configparams["TRAIN"].getboolean("use_gst")
+        self.style_embed_features = style_embed_features
+        print("use_gst: "+str(self.use_gst))
         self.use_guided_attn_loss = use_guided_attn_loss
         self.loss_type = loss_type
 
@@ -91,6 +109,20 @@ class Tacotron2(torch.nn.Module):
                            use_residual=use_residual,
                            dropout_rate=dropout_rate,
                            padding_idx=padding_idx, )
+
+        if self.use_gst:
+            self.gst = StyleEncoder(
+                idim=odim,  # the input is mel-spectrogram
+                gst_tokens=gst_tokens,
+                gst_token_dim=eunits,
+                gst_heads=gst_heads,
+                conv_layers=gst_conv_layers,
+                conv_chans_list=gst_conv_chans_list,
+                conv_kernel_size=gst_conv_kernel_size,
+                conv_stride=gst_conv_stride,
+                gru_layers=gst_gru_layers,
+                gru_units=gst_gru_units,
+            )
 
         if spk_embed_dim is not None:
             self.encoder_speakerembedding_projection = torch.nn.Linear(eunits + speaker_embedding_projection_size, eunits)
@@ -156,6 +188,13 @@ class Tacotron2(torch.nn.Module):
         # add eos at the last of sequence
         x = F.pad(x, [0, 1], "constant", self.eos)
         h = self.enc.inference(x)
+        print(h.size())
+        if self.use_gst:
+            print(self.style_embed_features.size())
+            style_embs = self.gst(self.style_embed_features.unsqueeze(0))
+            print(style_embs.size())
+            h = h + style_embs
+            print(h.size())
         if self.spk_embed_dim is not None:
             projected_speaker_embedding = self.embedding_projection(speaker_embedding)
             hs, spembs = h.unsqueeze(0), projected_speaker_embedding.unsqueeze(0)
@@ -183,6 +222,9 @@ class Tacotron2(torch.nn.Module):
                  spembs: torch.Tensor, ):
         hs, hlens = self.enc(xs, ilens)
         projected_speaker_embeddings = self.embedding_projection(spembs)
+        if self.use_gst:
+            style_embs = self.gst(ys)
+            hs = hs + style_embs.unsqueeze(1)
         if self.spk_embed_dim is not None:
             hs = self._integrate_with_spk_embed(hs, projected_speaker_embeddings)
         return self.dec(hs, hlens, ys, projected_speaker_embeddings)
