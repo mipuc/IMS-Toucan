@@ -57,6 +57,7 @@ class aridialect_Tacotron2(torch.nn.Module):
         #modelname = os.path.join("Models",str(self.model_num)+".pt")
         modelname = self.model_num
         print(modelname)
+        cached_speech=None
         #compute style_embed_features from style_embed_wav
         if  configparams["TRAIN"].getboolean("use_gst"):
             tf = TextFrontend(language="at", use_word_boundaries=False, use_explicit_eos=False)
